@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+if [[ -z "$1" ]]; then
+  branch2=`git rev-parse --abbrev-ref HEAD`
+  branch1=origin/$branch2
+elif [[ -z "$2" ]]; then
+  branch1=origin/$1
+  branch2=$1
+else
+  branch1=$1
+  branch2=$2
+fi
+
+#echo "Meta-Diffing: origin/master...$branch1 origin/master...$branch2"
+diff -U0 --label "$branch1" --label "$branch2" <(git diff origin/master..."$branch1") <(git diff origin/master..."$branch2")

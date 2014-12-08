@@ -1,0 +1,10 @@
+#!/usr/bin/env zsh
+
+if [[ "$#" -eq 0 || "$#" -gt 2 ]]; then
+  echo "Usage: `basename $0` [<user>@]<hostname> [<path> | ~]"
+  exit 0
+fi
+
+cd ~
+tar Hzcv --exclude .git - .janus .zsh .zshrc .vim .vimrc .cvsignore .ackrc .irbrc .gitattributes .gitconfig | ssh $1 "tar zx ${2:+-C \"$2\"}"
+cd -

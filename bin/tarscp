@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+require 'shellwords'
+
+if ARGV.size < 2
+  puts "Usage: #{$0} [<user>@]<hostname>[:<path> | ~]"
+  exit 0
+end
+
+host, path = ARGV.pop.split(':')
+path = "-C #{path}" if path
+
+files = Shellwords.join(ARGV)
+
+puts %[Running: tar Hzc - #{files} | ssh #{host} "tar zvx #{path}"]
+puts %x[tar Hzc - #{files} | ssh #{host} "tar zvx #{path}"].strip

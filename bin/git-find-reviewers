@@ -1,0 +1,158 @@
+#!/usr/bin/env /usr/bin/ruby
+
+require 'optparse'
+
+module FindReviewers
+  extend self
+
+  def run
+    parse_options
+
+    @time = Time.now if @options.debug
+
+    root = `git rev-parse --show-cdup`.chomp
+    unless root.empty?
+      err.puts "cd #{root}" if @options.debug
+      Dir.chdir(root)
+    end
+
+    err.puts "ARGV: #{ARGV.inspect}" if @options.debug
+    err.puts "Files: #{files.inspect}" if @options.debug
+
+    print_reviewers
+
+    if @options.log
+      print_log
+      out.close
+    end
+  end
+
+  private
+
+  def parse_options
+    return @options if defined?(@options)
+
+    @options = Struct.new(
+      :verbose,
+      :log,
+      :debug,
+      :color,
+      :log_patch
+    ).new
+    @options.color = true
+    OptionParser.new do |opts|
+      opts.banner = "Usage: git find-reviewers [options] [<rev>]"
+
+      opts.on("-v", "--[no-]verbose", "Print line count by file") do |v|
+        @options.verbose = v
+      end
+
+      opts.on("-l", "--[no-]log", "Include git log output") do |l|
+        @options.log = l
+      end
+
+      opts.on("-p", "Show full patch in log. Implies -l.") do |patch|
+        @options.log = patch
+        @options.log_patch = patch
+      end
+
+      opts.on("-c", "--[no-]color", "Colorize output (default: true)") do |c|
+        @options.color = c
+      end
+
+      opts.on("-d", "--[no-]debug", "Print debug information") do |d|
+        @options.debug = d
+      end
+    end.parse!
+  end
+
+  def print_reviewers
+    out.puts "List of potential reviewers"
+    authors.sort_by { |name, file_counts| -file_counts.values.reduce(:+) }.each do |name, file_counts|
+      out.puts "#{name.ljust(name_length)} | #{file_counts.values.reduce(:+)} line(s)"
+
+      if @options.verbose
+        file_counts.each do |file, count|
+          out.puts "\t#{file.ljust(file_length)} | #{count}"
+        end
+      end
+    end
+  end
+
+  def print_log
+    out.puts "\n\n"
+    cmd = %w(git -p log -w --stat --no-merges)
+    cmd << '--color' if @options.color
+    cmd << '-p' if @options.log_patch
+    cmd << branch
+    cmd << '--'
+    cmd += files
+    err.puts cmd.inspect if @options.debug
+    system(*cmd, out: out)
+  end
+
+
+  def authors
+    return @authors if defined?(@authors)
+
+    @authors = {}
+    @file_length = 0
+
+    files.each do |file|
+      time = Time.now
+      err.puts "Blaming: #{file} - #{time - @time}" if @options.debug
+
+      @file_length = file.size if @file_length < file.size
+      last_commit = File.exist?(file) ? 'HEAD' : 'master'
+      cmd = %w(git blame -w --line-porcelain) << last_commit << '--' << file
+      err.puts "Blame cmd: #{cmd.inspect}" if @options.debug
+      IO.popen(cmd) do |blame|
+        blame.each_line do |line|
+          matches = line.match(/^author (.+?)(?:$| and (.+)$)/)
+          next if matches.nil?
+          @authors[matches[1]] ||= Hash.new(0)
+          @authors[matches[1]][file] += 1
+          if matches[2]
+            @authors[matches[2]] ||= Hash.new(0)
+            @authors[matches[2]][file] += 1
+          end
+        end
+      end
+      err.puts "Blame time: #{Time.now - time}" if @options.debug
+    end
+
+    err.puts @authors.inspect if @options.debug
+
+    @authors
+  end
+
+  def file_length
+    @file_length || authors && @file_length
+  end
+
+  def name_length
+    @name_length ||= authors.max_by {|name, _| name.size }[0].size
+  end
+
+  def out
+    @out ||= @options.log ? IO.popen(pager, 'w') : STDOUT
+  end
+
+  def err
+    out
+  end
+
+  def pager
+    @pager ||= ENV['PAGER'] || 'less -R'
+  end
+
+  def branch
+    @branch ||= ARGV[0] || 'HEAD'
+  end
+
+  def files
+    @files ||= `git diff --name-only master...#{branch}`.split("\n")
+  end
+end
+
+FindReviewers.run

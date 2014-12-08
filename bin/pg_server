@@ -1,0 +1,19 @@
+#!/bin/sh
+
+if [[ "$#" -ne "1" ]]; then
+  echo "USAGE: $0 <command>"
+  exit 0
+fi
+
+PG_CTL=/usr/local/bin/pg_ctl
+DB_DIR=/usr/local/var/postgres
+LOG_FILE=/usr/local/var/log/postgres.log
+
+if [[ $1 == stop || $1 == restart ]]; then
+  MODE='--mode fast'
+else
+  MODE=''
+fi
+
+echo $PG_CTL --pgdata $DB_DIR --log $LOG_FILE $MODE $1
+$PG_CTL --pgdata $DB_DIR --log $LOG_FILE $MODE $1
