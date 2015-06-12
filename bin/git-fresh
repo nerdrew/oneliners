@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -e
+
+# This has to be run from master
+git checkout master
+if ! git diff --quiet; then
+  stashed=1
+  git stash
+fi
+git pull
+if [ -n "$stashed" ]; then
+  git stash pop
+fi
+git-purge-merged-branches || echo "Failed to delete some merged branches, continuing."

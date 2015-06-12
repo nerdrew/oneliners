@@ -1,30 +1,39 @@
 #!/usr/bin/env bash
 
-# This has to be run from master
-git checkout master
+set -e
 
-# Update our list of remotes
-git fetch
 git remote prune origin
 
-# Remove local fully merged branches
-echo "The following local branches are fully merged and will be removed:"
-git branch --merged master | grep -v 'master$'
+keep_branches="$GIT_PURGE_KEEP_BRANCHES master$"
 
-read -p "Continue (y/n)? " CLEAN_LOCAL_BRANCHES
-if [ "$CLEAN_LOCAL_BRANCHES" == "y" ]
-then
-  git branch --merged master | grep -v 'master$' | xargs git branch -d
+# Remove local fully merged branches
+merged_local=$(git branch --merged master)
+for branch in $(echo "$keep_branches"); do
+  merged_local=$(echo "$merged_local" | egrep -v "$branch" || true)
+done
+
+if [ -n "$merged_local" ]; then
+  echo "The following local branches are fully merged and will be removed:"
+  echo "$merged_local"
+  git branch -d $merged_local
+fi
+
+if [ -n "$GIT_PURGE_SKIP_REMOTE" ]; then
+  exit
 fi
 
 # Show remote fully merged branches
-echo "The following remote branches are fully merged and will be removed:"
-git branch -r --merged master | sed 's/ *origin\///' | grep -v 'master$'
+merged_remote=$(git branch -r --merged master | sed 's/ *origin\///')
+for branch in $(echo "$keep_branches"); do
+  merged_remote=$(echo "$merged_remote" | egrep -v "$branch" || true)
+done
 
-read -p "Continue (y/n)? " CLEAN_REMOTE_BRANCHES
-if [ "$CLEAN_REMOTE_BRANCHES" == "y" ]
-then
-   # Remove remote fully merged branches
-  git branch -r --merged master | sed 's/ *origin\///' | grep -v 'master$' | xargs -I% git push origin :%
-  echo "Done!"
+if [ -n "$merged_remote" ]; then
+  echo "The following remote branches are fully merged and will be removed:"
+  echo "$merged_remote"
+
+  read -p "Continue (y/n)? " CLEAN_REMOTE_BRANCHES
+  if [ "$CLEAN_REMOTE_BRANCHES" == "y" ]; then
+    echo "$merged_remote" | xargs -I% git push origin :%
+  fi
 fi
