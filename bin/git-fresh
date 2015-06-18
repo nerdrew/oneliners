@@ -3,13 +3,19 @@
 set -e
 
 # This has to be run from master
+old_branch=$(git rev-parse --abbrev-ref HEAD)
 git checkout master
-if ! git diff --quiet; then
-  stashed=1
-  git stash
-fi
-git pull
-if [ -n "$stashed" ]; then
-  git stash pop
+git fetch
+if ! git diff --quiet HEAD..origin/master; then
+  if ! git diff --quiet; then
+    stashed=1
+    git stash
+  fi
+  git merge --ff-only origin/master
+  if [ -n "$stashed" ]; then
+    git stash pop
+  fi
 fi
 git-purge-merged-branches || echo "Failed to delete some merged branches, continuing."
+git checkout $old_branch
+git rebase master
