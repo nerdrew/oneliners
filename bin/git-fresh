@@ -15,7 +15,7 @@ if ! git diff --quiet HEAD..origin/master; then
   if [ -n "$stashed" ]; then
     git stash pop
   fi
+  git checkout $old_branch
+  git rebase master
 fi
 git-purge-merged-branches || echo "Failed to delete some merged branches, continuing."
-git checkout $old_branch
-git rebase master
