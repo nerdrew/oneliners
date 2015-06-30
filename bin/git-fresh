@@ -2,18 +2,33 @@
 
 set -e
 
-# This has to be run from master
+usage() {
+    echo "Usage: $0 [<branch-to-rebase-on>]   (default branch=master)"
+    exit
+}
+
+if [ "$#" -eq 1 ]; then
+  if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    usage
+  else
+    target="$1"
+  fi
+elif [ "$#" -eq 0 ]; then
+  target=master
+else
+  usage
+fi
 old_branch=$(git rev-parse --abbrev-ref HEAD)
 git fetch
-if ! git diff --quiet master..origin/master; then
+if ! git diff --quiet ${target}..origin/${target}; then
   if ! git diff --quiet; then
     stashed=1
     git stash
   fi
-  git checkout master
-  git merge --ff-only origin/master
+  git checkout ${target}
+  git merge --ff-only origin/${target}
   git checkout $old_branch
-  git rebase master
+  git rebase ${target}
   if [ -n "$stashed" ]; then
     git stash pop
   fi
