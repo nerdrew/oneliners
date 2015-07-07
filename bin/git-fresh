@@ -18,17 +18,13 @@ elif [ "$#" -eq 0 ]; then
 else
   usage
 fi
-old_branch=$(git rev-parse --abbrev-ref HEAD)
 git fetch
-if ! git diff --quiet ${target}..origin/${target}; then
+if ! git diff --quiet $(git merge-base HEAD origin/${target})..origin/${target}; then
   if ! git diff --quiet; then
     stashed=1
     git stash
   fi
-  git checkout ${target}
-  git merge --ff-only origin/${target}
-  git checkout $old_branch
-  git rebase ${target}
+  git rebase origin/${target}
   if [ -n "$stashed" ]; then
     git stash pop
   fi
