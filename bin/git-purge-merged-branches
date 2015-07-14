@@ -7,7 +7,7 @@ git remote prune origin
 keep_branches="$GIT_PURGE_KEEP_BRANCHES master$"
 
 # Remove local fully merged branches
-merged_local=$(git branch --merged origin/master | grep -v '^\*')
+merged_local=$(git branch --merged origin/master | grep -v '^\*' || true)
 for branch in $(echo "$keep_branches"); do
   merged_local=$(echo "$merged_local" | egrep -v "$branch" || true)
 done
