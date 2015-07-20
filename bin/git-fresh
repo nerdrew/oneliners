@@ -3,7 +3,7 @@
 set -e
 
 usage() {
-    echo "Usage: $0 [<branch-to-rebase-on>]   (default branch=master)"
+    echo "Usage: $0 [<branch-to-rebase-on>]   (default branch=origin/master)"
     exit
 }
 
@@ -14,17 +14,17 @@ if [ "$#" -eq 1 ]; then
     target="$1"
   fi
 elif [ "$#" -eq 0 ]; then
-  target=master
+  target=origin/master
 else
   usage
 fi
 git fetch
-if ! git diff --quiet $(git merge-base HEAD origin/${target})..origin/${target}; then
+if ! git diff --quiet $(git merge-base HEAD ${target})..${target}; then
   if ! git diff --quiet; then
     stashed=1
     git stash
   fi
-  git rebase origin/${target}
+  git rebase ${target}
   if [ -n "$stashed" ]; then
     git stash pop
   fi
