@@ -2,6 +2,11 @@
 
 set -e
 
+usage() {
+    echo "Usage: $0 [--remote]"
+    exit
+}
+
 git remote prune origin
 
 keep_branches="$GIT_PURGE_KEEP_BRANCHES master$"
@@ -18,7 +23,13 @@ if [ -n "$merged_local" ]; then
   git branch -d $merged_local
 fi
 
-if [ -n "$GIT_PURGE_SKIP_REMOTE" ]; then
+if [ "$#" -eq 1 ]; then
+  if [ "$1" != "--remote" ]; then
+    usage
+  fi
+elif [ "$#" -gt 1 ]; then
+  usage
+elif [ "$#" -eq 0 ]; then
   exit
 fi
 
