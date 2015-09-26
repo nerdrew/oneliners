@@ -1,7 +1,10 @@
 #!/bin/bash
 
+brew update
+brew upgrade
+
 formulas=$(brew ls --versions | grep HEAD | cut -f 1 -d " " | tr "\n" " ")
-echo "Upgrading: $formulas"
+echo "Upgrading HEAD: $formulas"
 
 for formula in $formulas; do
   brew reinstall $formula --HEAD
