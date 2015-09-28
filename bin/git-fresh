@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -e
 
@@ -18,7 +18,7 @@ elif [ "$#" -eq 0 ]; then
 else
   usage
 fi
-git fetch
+git fetch --prune
 if ! git diff --quiet $(git merge-base HEAD ${target})..${target}; then
   if ! git diff --quiet; then
     stashed=1

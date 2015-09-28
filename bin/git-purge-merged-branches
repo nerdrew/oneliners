@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -e
 
@@ -6,8 +6,6 @@ usage() {
     echo "Usage: $0 [--remote]"
     exit
 }
-
-git remote prune origin
 
 keep_branches="$GIT_PURGE_KEEP_BRANCHES master$"
 
@@ -23,28 +21,36 @@ if [ -n "$merged_local" ]; then
   git branch -d $merged_local
 fi
 
-if [ "$#" -eq 1 ]; then
-  if [ "$1" != "--remote" ]; then
+while (( "$#" )); do
+  if [ "$1" == "--remote" ]; then
+    purge_remote=1
+  elif [ "$1" == "--tags" ]; then
+    purge_tags=1
+  else
     usage
   fi
-elif [ "$#" -gt 1 ]; then
-  usage
-elif [ "$#" -eq 0 ]; then
-  exit
-fi
 
-# Show remote fully merged branches
-merged_remote=$(git branch -r --merged origin/master | sed 's/ *origin\///')
-for branch in $(echo "$keep_branches"); do
-  merged_remote=$(echo "$merged_remote" | egrep -v "$branch" || true)
+  shift
 done
 
-if [ -n "$merged_remote" ]; then
-  echo "The following remote branches are fully merged and will be removed:"
-  echo "$merged_remote"
+if [ -n "$purge_remote" ]; then
+  # Show remote fully merged branches
+  merged_remote=$(git branch -r --merged origin/master | sed 's/ *origin\///')
+  for branch in $(echo "$keep_branches"); do
+    merged_remote=$(echo "$merged_remote" | egrep -v "$branch" || true)
+  done
 
-  read -p "Continue (y/n)? " CLEAN_REMOTE_BRANCHES
-  if [ "$CLEAN_REMOTE_BRANCHES" == "y" ]; then
-    echo "$merged_remote" | xargs -I% git push origin :%
+  if [ -n "$merged_remote" ]; then
+    echo "The following remote branches are fully merged and will be removed:"
+    echo "$merged_remote"
+
+    read -p "Continue (y/n)? " CLEAN_REMOTE_BRANCHES
+    if [ "$CLEAN_REMOTE_BRANCHES" == "y" ]; then
+      echo "$merged_remote" | xargs -I% git push origin :%
+    fi
   fi
+fi
+
+if [ -n "$purge_tags" ]; then
+  git fetch --prune origin '+refs/tags/*:refs/tags/*'
 fi
