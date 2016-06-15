@@ -2,15 +2,28 @@
 
 require 'shellwords'
 
+usage = "Usage: #{$0} [--sudo USER] <files...> [<user>@]<hostname>[:<path> | ~]"
 if ARGV.size < 2
-  puts "Usage: #{$0} [<user>@]<hostname>[:<path> | ~]"
+  puts usage
   exit 0
 end
 
 host, path = ARGV.pop.split(':')
-path = "-C #{path}" if path
+path = " -C #{path}" if path
+
+if ARGV[0].start_with?("--")
+  if ARGV[0] == "--sudo"
+    ARGV.shift
+    sudo = "sudo -iu #{ARGV.shift} "
+  else
+    warn "Unknown arg: #{ARGV[0]}"
+    puts usage
+    exit 1
+  end
+end
 
 files = Shellwords.join(ARGV)
 
-puts %[Running: tar Hzc - #{files} | ssh #{host} "tar zvx #{path}"]
-puts %x[tar Hzc - #{files} | ssh #{host} "tar zvx #{path}"].strip
+cmd = "tar -Hzc - #{files} | ssh #{host} #{sudo}tar -zvx#{path}"
+puts "Running: `#{cmd}`"
+exit 1 unless system(cmd)
