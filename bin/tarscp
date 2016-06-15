@@ -24,6 +24,6 @@ end
 
 files = Shellwords.join(ARGV)
 
-cmd = "tar -Hzc - #{files} | ssh #{host} #{sudo}tar -zvx#{path}"
+cmd = "tar -L -z -c -f - #{files} | ssh #{host} #{sudo}tar -z -v -x#{path}"
 puts "Running: `#{cmd}`"
 exit 1 unless system(cmd)
