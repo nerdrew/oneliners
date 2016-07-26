@@ -1,7 +1,6 @@
 #compdef git-find-reviewers
 
 typeset -A opt_args
-local context state line
 
 _arguments -s -S \
   "-v[Print line count by file]" \
