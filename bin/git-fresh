@@ -25,6 +25,14 @@ else
   git fetch --prune
 fi
 
+current=$(git rev-parse --abbrev-ref HEAD)
+for branch in $(echo "$GIT_PURGE_KEEP_BRANCHES"); do
+  if echo "$current" | egrep -q "$branch"; then
+    echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES=$GIT_PURGE_KEEP_BRANCHES"
+    exit 1
+  fi
+done
+
 if ! git diff --quiet $(git merge-base HEAD ${target})..${target}; then
   if ! git diff --quiet; then
     stashed=1
