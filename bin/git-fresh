@@ -39,7 +39,7 @@ if ! git diff --quiet $(git merge-base HEAD ${target})..${target}; then
     git stash
   fi
   git rebase ${target}
-  if [ -n "$stashed" ]; then
+  if [ -n "${stashed:-}" ]; then
     git stash pop
   fi
 fi
