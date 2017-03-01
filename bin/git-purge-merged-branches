@@ -3,18 +3,33 @@
 set -eu -o pipefail
 
 usage() {
-    echo "Usage: $0 [--remote]"
+    echo "Usage: $0 [--remote] [--tags] [<target-branch>]"
     exit
 }
 
-if ! $(git remote | grep -q origin); then
-  exit
-fi
+all_branches=$(git branch -r)
+
+while (( "$#" )); do
+  if [ "$1" == "--remote" ]; then
+    purge_remote=1
+  elif [ "$1" == "--tags" ]; then
+    purge_tags=1
+  elif [ -z "${target:-}" ] && $(echo $all_branches | grep -q "$1"); then
+    target="$1"
+  else
+    usage
+  fi
+
+  shift
+done
+
+target=${target:-origin/master}
+remote=${target%%/*}
 
 keep_branches="$GIT_PURGE_KEEP_BRANCHES master$"
 
 # Remove local fully merged branches
-merged_local=$(git branch --merged origin/master | grep -v '^\*' || true)
+merged_local=$(git branch --merged $target | grep -v '^\*' || true)
 for branch in $(echo "$keep_branches"); do
   merged_local=$(echo "$merged_local" | egrep -v "$branch" || true)
 done
@@ -25,21 +40,9 @@ if [ -n "$merged_local" ]; then
   git branch -d $merged_local
 fi
 
-while (( "$#" )); do
-  if [ "$1" == "--remote" ]; then
-    purge_remote=1
-  elif [ "$1" == "--tags" ]; then
-    purge_tags=1
-  else
-    usage
-  fi
-
-  shift
-done
-
-if [ -n "$purge_remote" ]; then
+if [ -n "${purge_remote:-}" ]; then
   # Show remote fully merged branches
-  merged_remote=$(git branch -r --merged origin/master | sed 's/ *origin\///')
+  merged_remote=$(git branch -r --merged $target | sed 's/ *'${remote}'\///')
   for branch in $(echo "$keep_branches"); do
     merged_remote=$(echo "$merged_remote" | egrep -v "$branch" || true)
   done
@@ -50,11 +53,11 @@ if [ -n "$purge_remote" ]; then
 
     read -p "Continue (y/n)? " CLEAN_REMOTE_BRANCHES
     if [ "$CLEAN_REMOTE_BRANCHES" == "y" ]; then
-      echo "$merged_remote" | xargs -I% git push origin :%
+      echo "$merged_remote" | xargs -I% git push $remote :%
     fi
   fi
 fi
 
-if [ -n "$purge_tags" ]; then
-  git fetch --prune origin '+refs/tags/*:refs/tags/*'
+if [ -n "${purge_tags:-}" ]; then
+  git fetch --prune $remote '+refs/tags/*:refs/tags/*'
 fi

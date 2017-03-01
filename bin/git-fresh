@@ -43,4 +43,4 @@ if ! git diff --quiet $(git merge-base HEAD ${target})..${target}; then
     git stash pop
   fi
 fi
-git-purge-merged-branches || echo "Failed to delete some merged branches, continuing."
+git-purge-merged-branches ${target} || echo "Failed to delete some merged branches, continuing."
