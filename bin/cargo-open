@@ -1,0 +1,15 @@
+#!/bin/bash -euf -o pipefail
+
+crate=$(cargo metadata | jq -r ".packages[] | select(.name == \"${@: -1}\") | .manifest_path")
+
+if [[ -z "$crate" ]]; then
+  cargo metadata | jq -r ".packages[].name" | sort -u
+  exit 1
+fi
+
+if [[ -z "$EDITOR" ]]; then
+  echo '$EDITOR is not set'
+  exit 1
+fi
+
+exec $EDITOR $(dirname "$crate")
