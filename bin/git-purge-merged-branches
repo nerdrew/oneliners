@@ -14,7 +14,7 @@ while (( "$#" )); do
     purge_remote=1
   elif [ "$1" == "--tags" ]; then
     purge_tags=1
-  elif [ -z "${target:-}" ] && $(echo $all_branches | grep -q "$1"); then
+  elif [ -z "${target:-}" ] && grep -q "$1" <<< "$all_branches"; then
     target="$1"
   else
     usage
@@ -26,38 +26,36 @@ done
 target=${target:-origin/master}
 remote=${target%%/*}
 
-keep_branches="$GIT_PURGE_KEEP_BRANCHES master$"
+purge_keep_branches=(master$ ${GIT_PURGE_KEEP_BRANCHES:-})
+keep_branches='^\*'"$(printf "|%s" "${purge_keep_branches[@]}")"
+
+# don't remove the "keep_branches", includes master and current='^\*'
+merged_local=($(git branch --merged "$target" | grep -vE "$keep_branches" || true))
 
 # Remove local fully merged branches
-merged_local=$(git branch --merged $target | grep -v '^\*' || true)
-for branch in $(echo "$keep_branches"); do
-  merged_local=$(echo "$merged_local" | egrep -v "$branch" || true)
-done
-
-if [ -n "$merged_local" ]; then
+if (( ${#merged_local[@]} )); then
   echo "The following local branches are fully merged and will be removed:"
-  echo "$merged_local"
-  git branch -d $merged_local
+  echo "${merged_local[@]}"
+  git branch -d "${merged_local[@]}"
 fi
 
 if [ -n "${purge_remote:-}" ]; then
   # Show remote fully merged branches
-  merged_remote=$(git branch -r --merged $target | sed 's/ *'${remote}'\///')
-  for branch in $(echo "$keep_branches"); do
-    merged_remote=$(echo "$merged_remote" | egrep -v "$branch" || true)
-  done
+  merged_remote=($(git branch -r --merged "$target" | sed 's/ *'"$remote"'\///' | grep -vE "$keep_branches"))
 
-  if [ -n "$merged_remote" ]; then
+  if (( ${#merged_remote[@]} )); then
     echo "The following remote branches are fully merged and will be removed:"
-    echo "$merged_remote"
+    echo "${merged_remote[@]}"
 
-    read -p "Continue (y/n)? " CLEAN_REMOTE_BRANCHES
+    read -r -p "Continue (y/n)? " CLEAN_REMOTE_BRANCHES
     if [ "$CLEAN_REMOTE_BRANCHES" == "y" ]; then
-      echo "$merged_remote" | xargs -I% git push $remote :%
+      for branch in "${merged_remote[@]}"; do
+        git push "$remote" ":$branch"
+      done
     fi
   fi
 fi
 
 if [ -n "${purge_tags:-}" ]; then
-  git fetch --prune $remote '+refs/tags/*:refs/tags/*'
+  git fetch --prune "$remote" '+refs/tags/*:refs/tags/*'
 fi

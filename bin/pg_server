@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [[ "$#" -ne "1" ]]; then
   echo "USAGE: $0 <command>"
@@ -15,5 +15,5 @@ else
   MODE=''
 fi
 
-echo $PG_CTL --pgdata $DB_DIR --log $LOG_FILE $MODE $1
-$PG_CTL --pgdata $DB_DIR --log $LOG_FILE $MODE $1
+echo $PG_CTL --pgdata $DB_DIR --log $LOG_FILE $MODE "$1"
+$PG_CTL --pgdata $DB_DIR --log $LOG_FILE $MODE "$1"

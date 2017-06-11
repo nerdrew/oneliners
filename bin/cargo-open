@@ -1,15 +1,29 @@
-#!/bin/bash -euf -o pipefail
+#!/bin/bash
 
-crate=$(cargo metadata | jq -r ".packages[] | select(.name == \"${@: -1}\") | .manifest_path")
+set -euf -o pipefail
+
+if [ $# -gt 1 ] && [[ "$1" == "open" ]]; then
+  shift
+fi
+
+if [ $# -ne 1 ] || [[ "${*:-1}" == "-h" ]] || [[ "${*:-1}" == "--help" ]]; then
+  echo "Usage: cargo open <crate>"
+  exit 1
+fi
+
+crate=$(cargo metadata --format-version=1 | jq -r "limit(1; .packages[] | select(.name == \"${*:-1}\") | .manifest_path)")
 
 if [[ -z "$crate" ]]; then
-  cargo metadata | jq -r ".packages[].name" | sort -u
+  echo "Usage: cargo open <crate>"
+  echo "Couldn't find crate \"${*:-1}\", valid crates:"
+  cargo metadata --format-version=1 | jq -r ".packages[].name" | sort -u
   exit 1
 fi
 
 if [[ -z "$EDITOR" ]]; then
+  # shellcheck disable=SC2016
   echo '$EDITOR is not set'
   exit 1
 fi
 
-exec $EDITOR $(dirname "$crate")
+exec "$EDITOR" "$(dirname "$crate")"
