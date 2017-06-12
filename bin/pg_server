@@ -2,7 +2,10 @@
 
 if [[ "$#" -ne "1" ]]; then
   echo "USAGE: $0 <command>"
-  exit 0
+  exit 1
+elif [[ "$1" == "-h" || "$1" == "--help" ]]; then
+  echo "USAGE: $0 <command>"
+  exit
 fi
 
 PG_CTL=/usr/local/bin/pg_ctl

@@ -3,19 +3,20 @@
 set -eu -o pipefail
 
 usage() {
-    echo "Usage: git fresh [<branch-to-rebase-on>]   (default branch=origin/master)"
-    exit 1
+  echo "Usage: git fresh [<branch-to-rebase-on>]   (default branch=origin/master)"
 }
 
 if [ $# -eq 1 ]; then
   if [[ "$1" == "-h" || "$1" == "--help" ]]; then
     usage
+    exit
   fi
   target=$1
 elif [ $# -eq 0 ]; then
   target=origin/master
 else
   usage
+  exit 1
 fi
 
 if [[ "$target" == */* ]]; then

@@ -3,21 +3,24 @@
 set -eu -o pipefail
 
 usage() {
-    echo "Usage: $0 [--remote] [--tags] [<target-branch>]"
-    exit
+  echo "Usage: $0 [--remote] [--tags] [<target-branch>]"
 }
 
 all_branches=$(git branch -r)
 
 while (( "$#" )); do
-  if [ "$1" == "--remote" ]; then
+  if [[ $1 == "--remote" ]]; then
     purge_remote=1
-  elif [ "$1" == "--tags" ]; then
+  elif [[ $1 == "--tags" ]]; then
     purge_tags=1
   elif [ -z "${target:-}" ] && grep -q "$1" <<< "$all_branches"; then
     target="$1"
+  elif [[ $1 == "-h" ]] || [[ $1 == "--help" ]]; then
+    usage
+    exit
   else
     usage
+    exit 1
   fi
 
   shift

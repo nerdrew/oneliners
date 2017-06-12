@@ -6,16 +6,19 @@ if [ $# -gt 1 ] && [[ "$1" == "open" ]]; then
   shift
 fi
 
-if [ $# -ne 1 ] || [[ "${*:-1}" == "-h" ]] || [[ "${*:-1}" == "--help" ]]; then
+if [ $# -ne 1 ]; then
   echo "Usage: cargo open <crate>"
   exit 1
+elif [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+  echo "Usage: cargo open <crate>"
+  exit
 fi
 
-crate=$(cargo metadata --format-version=1 | jq -r "limit(1; .packages[] | select(.name == \"${*:-1}\") | .manifest_path)")
+crate=$(cargo metadata --format-version=1 | jq -r "limit(1; .packages[] | select(.name == \"$1\") | .manifest_path)")
 
 if [[ -z "$crate" ]]; then
   echo "Usage: cargo open <crate>"
-  echo "Couldn't find crate \"${*:-1}\", valid crates:"
+  echo "Couldn't find crate \"$1\", valid crates:"
   cargo metadata --format-version=1 | jq -r ".packages[].name" | sort -u
   exit 1
 fi

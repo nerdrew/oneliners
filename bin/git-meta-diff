@@ -3,25 +3,25 @@
 set -eu -o pipefail
 
 usage() {
-    echo "Usage: $0 [<branch1>] [<branch2>]   (default branch1=origin/master branch2=HEAD)"
-    exit
+  echo "Usage: $0 [<branch1>] [<branch2>]   (default branch1=origin/master branch2=HEAD)"
 }
 
-if [ "$#" -eq 0 ]; then
+if [ $# -eq 0 ]; then
   branch2=$(git rev-parse --abbrev-ref HEAD)
   branch1=origin/$branch2
-elif [ "$#" -eq 1 ]; then
-  if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+elif [ $# -eq 1 ]; then
+  if [[ $1 == "-h" || $1 == "--help" ]]; then
     usage
-  else
-    branch1=origin/$1
-    branch2=$1
+    exit
   fi
-elif [ "$#" -eq 2 ]; then
+  branch1=origin/$1
+  branch2=$1
+elif [ $# -eq 2 ]; then
   branch1=$1
   branch2=$2
 else
   usage
+  exit 1
 fi
 
 mergebase=$(git merge-base "$branch1" "$branch2")
