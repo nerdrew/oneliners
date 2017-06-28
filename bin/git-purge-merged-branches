@@ -38,7 +38,7 @@ merged_local=($(git branch --merged "$target" | grep -vE "$keep_branches" || tru
 # Remove local fully merged branches
 if (( ${#merged_local[@]} )); then
   echo "The following local branches are fully merged and will be removed:"
-  echo "${merged_local[@]}"
+  printf "    %s\n" "${merged_local[@]}"
   git branch -d "${merged_local[@]}"
 fi
 
@@ -48,7 +48,7 @@ if [ -n "${purge_remote:-}" ]; then
 
   if (( ${#merged_remote[@]} )); then
     echo "The following remote branches are fully merged and will be removed:"
-    echo "${merged_remote[@]}"
+    printf "    %s\n" "${merged_remote[@]}"
 
     read -r -p "Continue (y/n)? " CLEAN_REMOTE_BRANCHES
     if [ "$CLEAN_REMOTE_BRANCHES" == "y" ]; then

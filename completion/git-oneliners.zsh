@@ -15,7 +15,7 @@ _git_oneliners() {
   elif [[ $curr == "meta-diff" ]]; then
     _arguments \
       "$last: :__git_oneliners_branches" \
-      "$(($last + 1)): :__git_oneliners_branches"
+      "$((last + 1)): :__git_oneliners_branches"
     _compskip=all
   elif [[ $curr == "purge-merged-branches" ]]; then
     _arguments \
