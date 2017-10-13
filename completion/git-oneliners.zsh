@@ -1,5 +1,8 @@
 #compdef git-fresh git-find-reviewers git-meta-diff git-purge-merged-branches -p git
 
+local context state state_descr line
+typeset -A opt_args
+
 _git_oneliners() {
   if [[ ${words[1]} == "git" ]]; then
     curr=${words[2]}
@@ -13,9 +16,12 @@ _git_oneliners() {
       "$last: :__git_oneliners_branches"
     _compskip=all
   elif [[ $curr == "meta-diff" ]]; then
-    _arguments \
+    _arguments -s -S \
+      '(-h --help)'{-h,--help}'[show help]' \
+      '(-w --ignore-all-space)'{-w,--ignore-all-space}'[ignore space in diff]' \
       "$last: :__git_oneliners_branches" \
-      "$((last + 1)): :__git_oneliners_branches"
+      "$((last + 1)): :__git_oneliners_branches" \
+      "*: :_files"
     _compskip=all
   elif [[ $curr == "purge-merged-branches" ]]; then
     _arguments \

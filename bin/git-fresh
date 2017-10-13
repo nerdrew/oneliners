@@ -25,23 +25,29 @@ else
   git fetch --prune
 fi
 
-current=$(git rev-parse --abbrev-ref HEAD)
+current=$(git rev-parse --abbrev-ref --verify HEAD)
 purge_keep_branches=(${GIT_PURGE_KEEP_BRANCHES:-})
 keep_branches="$(printf "|%s" "${purge_keep_branches[@]}")"
 # #| removes the leading |
 if grep -qE "${keep_branches#|}" <<< "$current" ; then
-  echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES=$GIT_PURGE_KEEP_BRANCHES"
-  exit 1
-fi
+  echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES=$GIT_PURGE_KEEP_BRANCHES" 1>&2
+  if ! (git pull || git config "branch.$current.merge"); then
+    echo "Setting upstream branch: git branch --set-upstream-to=origin/$current" 1>&2
+    git branch --set-upstream-to="origin/$current"
+    git pull
+  fi
+  git-purge-merged-branches "${current}" || echo "Failed to delete some merged branches, continuing."
+else
+  if ! git diff --quiet "$(git merge-base HEAD "${target}")..${target}"; then
+    if ! git diff --quiet; then
+      stashed=1
+      git stash
+    fi
+    git rebase "${target}"
+    if [ -n "${stashed:-}" ]; then
+      git stash pop
+    fi
+  fi
 
-if ! git diff --quiet "$(git merge-base HEAD "${target}")..${target}"; then
-  if ! git diff --quiet; then
-    stashed=1
-    git stash
-  fi
-  git rebase "${target}"
-  if [ -n "${stashed:-}" ]; then
-    git stash pop
-  fi
+  git-purge-merged-branches "${target}" || echo "Failed to delete some merged branches, continuing."
 fi
-git-purge-merged-branches "${target}" || echo "Failed to delete some merged branches, continuing."
