@@ -38,8 +38,8 @@ if grep -qE "${keep_branches#|}" <<< "$current" ; then
   fi
   git-purge-merged-branches "${current}" || echo "Failed to delete some merged branches, continuing."
 else
-  if ! git diff --quiet "$(git merge-base HEAD "${target}")..${target}"; then
-    if ! git diff --quiet; then
+  if ! git diff --quiet --ignore-submodules=dirty "$(git merge-base HEAD "${target}")..${target}"; then
+    if ! git diff --quiet --ignore-submodules=dirty; then
       stashed=1
       git stash
     fi
