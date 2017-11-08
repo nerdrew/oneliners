@@ -6,59 +6,66 @@ usage() {
   echo "Usage: $0 [--remote] [--tags] [<target-branch>]"
 }
 
-all_branches=$(git branch -r)
+main() {
+  local all_branches purge_remote purge_tags target remote keep_branches
+  local -a purge_keep_branches merged_local merged_remote
 
-while (( $# )); do
-  if [[ $1 == "--remote" ]]; then
-    purge_remote=1
-  elif [[ $1 == "--tags" ]]; then
-    purge_tags=1
-  elif [ -z "${target:-}" ] && grep -q "$1" <<< "$all_branches"; then
-    target="$1"
-  elif [[ $1 == "-h" ]] || [[ $1 == "--help" ]]; then
-    usage
-    exit
-  else
-    usage
-    exit 1
+  all_branches=$(git branch -r)
+
+  while (( $# )); do
+    if [[ $1 == "--remote" ]]; then
+      purge_remote=1
+    elif [[ $1 == "--tags" ]]; then
+      purge_tags=1
+    elif [[ -z "${target:-}" ]] && grep -q "$1" <<< "$all_branches"; then
+      target="$1"
+    elif [[ $1 == "-h" ]] || [[ $1 == "--help" ]]; then
+      usage
+      exit
+    else
+      usage
+      exit 1
+    fi
+
+    shift
+  done
+
+  target=${target:-origin/master}
+  remote=${target%%/*}
+
+  purge_keep_branches=(master$ ${GIT_PURGE_KEEP_BRANCHES:-})
+  keep_branches='^\*'"$(printf "|%s" "${purge_keep_branches[@]}")"
+
+  # don't remove the "keep_branches", includes master and current='^\*'
+  merged_local=($(git branch --merged "$target" | grep -viE "$keep_branches" || true))
+
+  # Remove local fully merged branches
+  if (( ${#merged_local[@]} )); then
+    echo "The following local branches are fully merged and will be removed:"
+    printf "    %s\n" "${merged_local[@]}"
+    git branch -d "${merged_local[@]}"
   fi
 
-  shift
-done
+  if [[ -n "${purge_remote:-}" ]]; then
+    # Show remote fully merged branches
+    merged_remote=($(git branch -r --merged "$target" | sed 's/ *'"$remote"'\///' | grep -viE "$keep_branches"))
 
-target=${target:-origin/master}
-remote=${target%%/*}
+    if (( ${#merged_remote[@]} )); then
+      echo "The following remote branches are fully merged and will be removed:"
+      printf "    %s\n" "${merged_remote[@]}"
 
-purge_keep_branches=(master$ ${GIT_PURGE_KEEP_BRANCHES:-})
-keep_branches='^\*'"$(printf "|%s" "${purge_keep_branches[@]}")"
-
-# don't remove the "keep_branches", includes master and current='^\*'
-merged_local=($(git branch --merged "$target" | grep -vE "$keep_branches" || true))
-
-# Remove local fully merged branches
-if (( ${#merged_local[@]} )); then
-  echo "The following local branches are fully merged and will be removed:"
-  printf "    %s\n" "${merged_local[@]}"
-  git branch -d "${merged_local[@]}"
-fi
-
-if [ -n "${purge_remote:-}" ]; then
-  # Show remote fully merged branches
-  merged_remote=($(git branch -r --merged "$target" | sed 's/ *'"$remote"'\///' | grep -vE "$keep_branches"))
-
-  if (( ${#merged_remote[@]} )); then
-    echo "The following remote branches are fully merged and will be removed:"
-    printf "    %s\n" "${merged_remote[@]}"
-
-    read -r -p "Continue (y/n)? " CLEAN_REMOTE_BRANCHES
-    if [ "$CLEAN_REMOTE_BRANCHES" == "y" ]; then
-      for branch in "${merged_remote[@]}"; do
-        git push "$remote" ":$branch"
-      done
+      read -r -p "Continue (y/n)? " CLEAN_REMOTE_BRANCHES
+      if [[ "$CLEAN_REMOTE_BRANCHES" == "y" ]]; then
+        for branch in "${merged_remote[@]}"; do
+          git push "$remote" ":$branch"
+        done
+      fi
     fi
   fi
-fi
 
-if [ -n "${purge_tags:-}" ]; then
-  git fetch --prune "$remote" '+refs/tags/*:refs/tags/*'
-fi
+  if [[ -n "${purge_tags:-}" ]]; then
+    git fetch --prune "$remote" '+refs/tags/*:refs/tags/*'
+  fi
+}
+
+main "$@"

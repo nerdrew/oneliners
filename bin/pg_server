@@ -1,22 +1,30 @@
 #!/bin/bash
 
-if [[ "$#" -ne "1" ]]; then
-  echo "USAGE: $0 <command>"
-  exit 1
-elif [[ "$1" == "-h" || "$1" == "--help" ]]; then
-  echo "USAGE: $0 <command>"
-  exit
-fi
+set -eu -o pipefail
 
-PG_CTL=/usr/local/bin/pg_ctl
-DB_DIR=/usr/local/var/postgres
-LOG_FILE=/usr/local/var/log/postgres.log
+main() {
+  local pg_ctl db_dir log_file mode
 
-if [[ $1 == stop || $1 == restart ]]; then
-  MODE='--mode fast'
-else
-  MODE=''
-fi
+  if [[ "$#" -ne "1" ]]; then
+    echo "USAGE: $0 <command>"
+    exit 1
+  elif [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    echo "USAGE: $0 <command>"
+    exit
+  fi
 
-echo $PG_CTL --pgdata $DB_DIR --log $LOG_FILE $MODE "$1"
-$PG_CTL --pgdata $DB_DIR --log $LOG_FILE $MODE "$1"
+  pg_ctl=/usr/local/bin/pg_ctl
+  db_dir=/usr/local/var/postgres
+  log_file=/usr/local/var/log/postgres.log
+
+  if [[ $1 == stop || $1 == restart ]]; then
+    mode='--mode fast'
+  else
+    mode=''
+  fi
+
+  echo $pg_ctl --pgdata $db_dir --log $log_file $mode "$1"
+  $pg_ctl --pgdata $db_dir --log $log_file $mode "$1"
+}
+
+main "$@"

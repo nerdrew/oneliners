@@ -2,16 +2,22 @@
 
 set -eu -o pipefail
 
-common_args=("--tag-relative=yes" -Rf .git/tags "--exclude=.git")
-if [ "$(command -v ctags)" != "/usr/bin/ctags" ]; then
-  rm -f .git/tags
-  if [ -f Gemfile ]; then
-    ripper-tags "${common_args[@]}" || (echo "ripper-tags not installed: gem install ripper-tags" && exit 1)
-    ctags "${common_args[@]}" --append --languages=-javascript,sql,ruby
+main() {
+  local -a common_args
+
+  common_args=("--tag-relative=yes" -Rf .git/tags "--exclude=.git")
+  if [[ "$(command -v ctags)" != "/usr/bin/ctags" ]]; then
+    rm -f .git/tags
+    if [[ -f Gemfile ]]; then
+      ripper-tags "${common_args[@]}" || (echo "ripper-tags not installed: gem install ripper-tags" && exit 1)
+      ctags "${common_args[@]}" --append --languages=-javascript,sql,ruby
+    else
+      ctags "${common_args[@]}" --append --languages=-javascript,sql
+    fi
   else
-    ctags "${common_args[@]}" --append --languages=-javascript,sql
+    echo "brew install ctags or brew install --HEAD universal-ctags/universal-ctags/universal-ctags"
+    exit 1
   fi
-else
-  echo "brew install ctags or brew install --HEAD universal-ctags/universal-ctags/universal-ctags"
-  exit 1
-fi
+}
+
+main "$@"

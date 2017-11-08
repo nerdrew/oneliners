@@ -2,18 +2,24 @@
 
 set -eu -o pipefail
 
-if ! git diff --quiet; then
-  stashed=1
-  git stash
-fi
+main() {
+  local stashed url
 
-git checkout master
-git remote rename origin upstream
-url=$(git remote get-url upstream)
-git remote add origin git@github.com:nerdrew/${url#https://github.com/*/}
-git fetch origin
-git branch --set-upstream-to=origin/master
+  if ! git diff --quiet; then
+    stashed=1
+    git stash
+  fi
 
-if [ -n "$stashed" ]; then
-  git stash pop
-fi
+  git checkout master
+  git remote rename origin upstream
+  url=$(git remote get-url upstream)
+  git remote add origin "git@github.com:nerdrew/${url#https://github.com/*/}"
+  git fetch origin
+  git branch --set-upstream-to=origin/master
+
+  if [[ -n "$stashed" ]]; then
+    git stash pop
+  fi
+}
+
+main "$@"

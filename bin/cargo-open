@@ -2,31 +2,37 @@
 
 set -euf -o pipefail
 
-if [ $# -gt 1 ] && [[ "$1" == "open" ]]; then
-  shift
-fi
+main() {
+  local crate
 
-if [ $# -ne 1 ]; then
-  echo "Usage: cargo open <crate>"
-  exit 1
-elif [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
-  echo "Usage: cargo open <crate>"
-  exit
-fi
+  if [[ $# -gt 1 ]] && [[ "$1" == "open" ]]; then
+    shift
+  fi
 
-crate=$(cargo metadata --format-version=1 | jq -r "limit(1; .packages[] | select(.name == \"$1\") | .manifest_path)")
+  if [[ $# -ne 1 ]]; then
+    echo "Usage: cargo open <crate>"
+    exit 1
+  elif [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+    echo "Usage: cargo open <crate>"
+    exit
+  fi
 
-if [[ -z "$crate" ]]; then
-  echo "Usage: cargo open <crate>"
-  echo "Couldn't find crate \"$1\", valid crates:"
-  cargo metadata --format-version=1 | jq -r ".packages[].name" | sort -u
-  exit 1
-fi
+  crate=$(cargo metadata --format-version=1 | jq -r "limit(1; .packages[] | select(.name == \"$1\") | .manifest_path)")
 
-if [[ -z "$EDITOR" ]]; then
-  # shellcheck disable=SC2016
-  echo '$EDITOR is not set'
-  exit 1
-fi
+  if [[ -z "$crate" ]]; then
+    echo "Usage: cargo open <crate>"
+    echo "Couldn't find crate \"$1\", valid crates:"
+    cargo metadata --format-version=1 | jq -r ".packages[].name" | sort -u
+    exit 1
+  fi
 
-exec "$EDITOR" "$(dirname "$crate")"
+  if [[ -z "$EDITOR" ]]; then
+    # shellcheck disable=SC2016
+    echo '$EDITOR is not set'
+    exit 1
+  fi
+
+  exec "$EDITOR" "$(dirname "$crate")"
+}
+
+main "$@"

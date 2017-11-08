@@ -6,43 +6,50 @@ usage() {
   echo "Usage: $0 [git-log-options] [<branch1>=origin/<branch2>] [<branch2>=HEAD] [-- paths...]"
 }
 
-logopts=()
+main() {
+  local branch1 branch2 mergebase commits1 commits2 commits
+  local -a logopts paths
 
-while (( $# )); do
-  if [ -z "$1" ]; then
-    break
-  elif [[ $1 == "-h" || $1 == "--help" ]]; then
-    usage
-    exit
-  elif [[ ${1} == "--" ]]; then
-    paths=($@)
-    break
-  elif [[ ${1:0:1} == "-" ]]; then
-    logopts+=($1)
-  elif [ -z "${branch1:-}" ]; then
-    branch1=$1
-  elif [ -z "${branch2:-}" ]; then
-    branch2=$1
-  else
-    usage
-    exit 1
-  fi
+  logopts=(-u)
 
-  shift
-done
+  while (( $# )); do
+    if [[ -z "$1" ]]; then
+      break
+    elif [[ $1 == "-h" || $1 == "--help" ]]; then
+      usage
+      exit
+    elif [[ ${1} == "--" ]]; then
+      paths=($@)
+      break
+    elif [[ ${1:0:1} == "-" ]]; then
+      logopts+=($1)
+    elif [[ -z "${branch1:-}" ]]; then
+      branch1=$1
+    elif [[ -z "${branch2:-}" ]]; then
+      branch2=$1
+    else
+      usage
+      exit 1
+    fi
 
-branch2=${branch2:-$(git rev-parse --abbrev-ref HEAD)}
-branch1=${branch1:-origin/$branch2}
+    shift
+  done
+
+  branch2=${branch2:-$(git rev-parse --abbrev-ref HEAD)}
+  branch1=${branch1:-origin/$branch2}
 
 
-mergebase=$(git merge-base "$branch1" "$branch2")
-commits1=$(git log --oneline "$mergebase..$branch1" | wc -l)
-commits2=$(git log --oneline "$mergebase..$branch2" | wc -l)
+  mergebase=$(git merge-base "$branch1" "$branch2")
+  commits1=$(git log --oneline "$mergebase..$branch1" | wc -l)
+  commits2=$(git log --oneline "$mergebase..$branch2" | wc -l)
 
-commits=$(( commits1 > commits2 ? commits2 : commits1 ))
+  commits=$(( commits1 > commits2 ? commits2 : commits1 ))
 
-diff -U0 --label "$branch1" --label "$branch2" \
-  <(git log -u "${logopts[@]}" -$commits "$mergebase...$branch1" "${paths[@]:-}" \
+  diff -U0 --label "$branch1" --label "$branch2" \
+    <(git log "${logopts[@]}" -$commits "$mergebase...$branch1" "${paths[@]:-.}" \
     | grep -vE '^(@@ -\d+,\d+ \+\d+,\d+|index \w{7}\.\.\w{7}|commit \w{40})') \
-  <(git log -u "${logopts[@]}" -$commits "$mergebase...$branch2" "${paths[@]:-}" \
-    | grep -vE '^(@@ -\d+,\d+ \+\d+,\d+|index \w{7}\.\.\w{7}|commit \w{40})') \
+    <(git log "${logopts[@]}" -$commits "$mergebase...$branch2" "${paths[@]:-.}" \
+    | grep -vE '^(@@ -\d+,\d+ \+\d+,\d+|index \w{7}\.\.\w{7}|commit \w{40})')
+}
+
+main "$@"
