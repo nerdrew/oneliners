@@ -22,9 +22,9 @@ main() {
     target=$1
   elif [[ $# -eq 0 ]]; then
     target=origin/master
-    if ! git config "branch.$current.remote"; then
+    if ! git config "branch.$current.remote" > /dev/null; then
       echo "Setting upstream branch: git branch --set-upstream-to=origin/$current" 1>&2
-      git branch --set-upstream-to="origin/$current"
+      git branch --set-upstream-to="origin/$current" || true
     fi
   else
     usage
