@@ -10,6 +10,10 @@ main() {
   local target current keep_branches stashed
   local -a purge_keep_branches
 
+  current=$(git rev-parse --abbrev-ref --verify HEAD)
+  purge_keep_branches=(master ${GIT_PURGE_KEEP_BRANCHES:-})
+  keep_branches="$(printf "|%s" "${purge_keep_branches[@]}")"
+
   if [[ $# -eq 1 ]]; then
     if [[ "$1" == "-h" || "$1" == "--help" ]]; then
       usage
@@ -18,6 +22,10 @@ main() {
     target=$1
   elif [[ $# -eq 0 ]]; then
     target=origin/master
+    if ! git config "branch.$current.remote"; then
+      echo "Setting upstream branch: git branch --set-upstream-to=origin/$current" 1>&2
+      git branch --set-upstream-to="origin/$current"
+    fi
   else
     usage
     exit 1
@@ -29,18 +37,10 @@ main() {
     git fetch --prune
   fi
 
-  current=$(git rev-parse --abbrev-ref --verify HEAD)
-  purge_keep_branches=(master ${GIT_PURGE_KEEP_BRANCHES:-})
-  keep_branches="$(printf "|%s" "${purge_keep_branches[@]}")"
-
   # #| removes the leading "|"
   if grep -qiE "${keep_branches#|}" <<< "$current" ; then
     echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES=$GIT_PURGE_KEEP_BRANCHES" 1>&2
-    if ! (git pull || git config "branch.$current.merge"); then
-      echo "Setting upstream branch: git branch --set-upstream-to=origin/$current" 1>&2
-      git branch --set-upstream-to="origin/$current"
-      git pull
-    fi
+    git pull ${target%%/*} ${target#*/}
     git-purge-merged-branches "${current}" || echo "Failed to delete some merged branches, continuing."
   else
     if ! git diff --quiet --ignore-submodules=dirty "$(git merge-base HEAD "${target}")..${target}"; then
