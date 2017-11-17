@@ -40,7 +40,7 @@ main() {
   # #| removes the leading "|"
   if grep -qiE "${keep_branches#|}" <<< "$current" ; then
     echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES=$GIT_PURGE_KEEP_BRANCHES" 1>&2
-    git pull ${target%%/*} ${target#*/}
+    git pull
     git-purge-merged-branches "${current}" || echo "Failed to delete some merged branches, continuing."
   else
     if ! git diff --quiet --ignore-submodules=dirty "$(git merge-base HEAD "${target}")..${target}"; then
