@@ -3,7 +3,13 @@
 set -eu -o pipefail
 
 usage() {
-  echo "Usage: $0 [git-log-options] [<branch1>=origin/<branch2>] [<branch2>=HEAD] [-- paths...]"
+  cat <<EOF 
+Usage: git meta-diff [git-log-options] [BRANCH1=origin/BRANCH2] [BRANCH2=HEAD] [-- paths...]
+
+Show the diff of the \`git log\` between BRANCH1 and BRANCH2.
+EOF
+
+  exit "$1"
 }
 
 main() {
@@ -16,8 +22,7 @@ main() {
     if [[ -z "$1" ]]; then
       break
     elif [[ $1 == "-h" || $1 == "--help" ]]; then
-      usage
-      exit
+      usage 0
     elif [[ ${1} == "--" ]]; then
       paths=($@)
       break
@@ -28,8 +33,7 @@ main() {
     elif [[ -z "${branch2:-}" ]]; then
       branch2=$1
     else
-      usage
-      exit 1
+      usage 1
     fi
 
     shift

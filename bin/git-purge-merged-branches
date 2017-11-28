@@ -3,7 +3,13 @@
 set -eu -o pipefail
 
 usage() {
-  echo "Usage: $0 [--remote] [--tags] [<target-branch>]"
+  cat <<EOF
+Usage: git purge-merged-branches [--remote] [--tags] [BRANCH=origin/master]
+
+Delete all branches merged with BRANCH. Optionally delete remote branches too.
+EOF
+
+  exit "$1"
 }
 
 main() {
@@ -20,11 +26,9 @@ main() {
     elif [[ -z "${target:-}" ]] && grep -q "$1" <<< "$all_branches"; then
       target="$1"
     elif [[ $1 == "-h" ]] || [[ $1 == "--help" ]]; then
-      usage
-      exit
+      usage 0
     else
-      usage
-      exit 1
+      usage 1
     fi
 
     shift

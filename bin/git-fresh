@@ -3,7 +3,15 @@
 set -eu -o pipefail
 
 usage() {
-  echo "Usage: git fresh [<branch-to-rebase-on>]   (default branch=origin/master)"
+  cat <<EOF
+Usage: git fresh [BRANCH=origin/master]
+
+Fetch the target BRANCH, stash changes if necessary, and rebase on it.  If the
+current branch matches \$GIT_PURGE_KEEP_BRANCHES, the don't rebase, only pull.
+Prune merged branches after.
+EOF
+
+  exit "$1"
 }
 
 main() {
@@ -16,8 +24,7 @@ main() {
 
   if [[ $# -eq 1 ]]; then
     if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-      usage
-      exit
+      usage 0
     fi
     target=$1
   elif [[ $# -eq 0 ]]; then
@@ -27,8 +34,7 @@ main() {
       git branch --set-upstream-to="origin/$current" || true
     fi
   else
-    usage
-    exit 1
+    usage 1
   fi
 
   if [[ "$target" == */* ]]; then
