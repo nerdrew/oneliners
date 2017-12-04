@@ -2,20 +2,59 @@
 
 set -eu -o pipefail
 
-main() {
-  local -a common_args
+usage() {
+  cat <<EOF
+Usage: git ctags [--[no-]ruby] [ctags options]
 
-  common_args=("--tag-relative=yes" -Rf .git/tags "--exclude=.git")
+Build ctags. By default it checks for a Gemfile to determine whether it is a ruby project.
+EOF
+
+  exit "$1"
+}
+
+main() {
+  local -a common_args extra_ctags_args=(--append "--languages=-sql")
+  local ruby
+
+  if [[ -f Gemfile ]]; then
+    ruby=y
+  fi
+
+  while (( $# )); do
+    case "$1" in
+      -h|--help)
+        usage 0
+        ;;
+      --ruby)
+        ruby=y
+        ;;
+      --no-ruby)
+        ruby=""
+        ;;
+      *)
+        extra_ctags_args+=($1)
+        ;;
+    esac
+
+    shift
+  done
+
+  common_args=("--tag-relative=yes" -L .git/tags.files -f .git/tags)
+
   if [[ "$(command -v ctags)" != "/usr/bin/ctags" ]]; then
+    rm -f .git/tags.files
     rm -f .git/tags
-    if [[ -f Gemfile ]]; then
+
+    rg --files -g '!*.sql' -g '!*.xml' > .git/tags.files
+
+    if [[ -n "$ruby" ]]; then
       ripper-tags "${common_args[@]}" || (echo "ripper-tags not installed: gem install ripper-tags" && exit 1)
-      ctags "${common_args[@]}" --append --languages=-javascript,sql,ruby
+      ctags "${common_args[@]}" --languages=-ruby "${extra_ctags_args[@]}"
     else
-      ctags "${common_args[@]}" --append --languages=-javascript,sql
+      ctags "${common_args[@]}" "${extra_ctags_args[@]}"
     fi
   else
-    echo "brew install ctags or brew install --HEAD universal-ctags/universal-ctags/universal-ctags"
+    echo "brew install ctags or brew install --HEAD universal-ctags/universal-ctags/universal-ctags" >&2
     exit 1
   fi
 }

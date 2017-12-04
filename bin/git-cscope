@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -eu -o pipefail
+
+main() {
+  if command -v cscope > /dev/null; then
+    rm -f .git/cscope.files
+    rm -f .git/cscope.out
+    rg --files -g '!*.sql' -g '!*.xml' | sed -E 's/"/\\"/;s/^/"/;s/$/"/' > .git/cscope.files
+    cscope -b -i .git/cscope.files -f .git/cscope.out
+  else
+    echo "brew install cscope" >&2
+    exit 1
+  fi
+}
+
+main "$@"
