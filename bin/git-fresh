@@ -15,7 +15,7 @@ EOF
 }
 
 main() {
-  local target current keep_branches stashed
+  local target current keep_branches stashed force
   local -a purge_keep_branches
 
   current=$(git rev-parse --abbrev-ref --verify HEAD)
@@ -27,6 +27,7 @@ main() {
       usage 0
     fi
     target=$1
+    force=1
   elif [[ $# -eq 0 ]]; then
     target=origin/master
     if ! git config "branch.$current.remote" > /dev/null; then
@@ -44,10 +45,9 @@ main() {
   fi
 
   # #| removes the leading "|"
-  if grep -qiE "${keep_branches#|}" <<< "$current" ; then
+  if [[ -z "$force" ]] && grep -qiE "${keep_branches#|}" <<< "$current" ; then
     echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES=$GIT_PURGE_KEEP_BRANCHES" 1>&2
     git pull
-    git-purge-merged-branches "${current}" || echo "Failed to delete some merged branches, continuing."
   else
     if ! git diff --quiet --ignore-submodules=dirty "$(git merge-base HEAD "${target}")..${target}"; then
       if ! git diff --quiet --ignore-submodules=dirty; then
@@ -59,9 +59,8 @@ main() {
         git stash pop
       fi
     fi
-
-    git-purge-merged-branches "${target}" || echo "Failed to delete some merged branches, continuing."
   fi
+  git-purge-merged-branches "${target}" || echo "Failed to delete some merged branches, continuing."
 }
 
 main "$@"
