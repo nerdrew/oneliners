@@ -19,7 +19,7 @@ main() {
   local -a purge_keep_branches
 
   current=$(git rev-parse --abbrev-ref --verify HEAD)
-  purge_keep_branches=(master ${GIT_PURGE_KEEP_BRANCHES:-})
+  read -r -a purge_keep_branches <<< "master ${GIT_PURGE_KEEP_BRANCHES[*]:-}"
   keep_branches="$(printf "|%s" "${purge_keep_branches[@]}")"
 
   if [[ $# -eq 1 ]]; then
@@ -46,7 +46,7 @@ main() {
 
   # #| removes the leading "|"
   if [[ -z "$force" ]] && grep -qiE "${keep_branches#|}" <<< "$current" ; then
-    echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES=$GIT_PURGE_KEEP_BRANCHES" 1>&2
+    echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES='$GIT_PURGE_KEEP_BRANCHES'" 1>&2
     git pull
   else
     if ! git diff --quiet --ignore-submodules=dirty "$(git merge-base HEAD "${target}")..${target}"; then
