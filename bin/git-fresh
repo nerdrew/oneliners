@@ -4,7 +4,7 @@ set -eu -o pipefail
 
 usage() {
   cat <<EOF
-Usage: git fresh [BRANCH=origin/master]
+Usage: git fresh [BRANCH=origin/HEAD]
 
 Fetch the target BRANCH, stash changes if necessary, and rebase on it.  If the
 current branch matches \$GIT_PURGE_KEEP_BRANCHES, the don't rebase, only pull.
@@ -29,7 +29,7 @@ main() {
     target=$1
     force=1
   elif [[ $# -eq 0 ]]; then
-    target=origin/master
+    target=$(git rev-parse --verify --abbrev-ref --symbolic-full-name origin/HEAD 2>/dev/null || echo origin/master)
     if ! git config "branch.$current.remote" > /dev/null; then
       echo "Setting upstream branch: git branch --set-upstream-to=origin/$current" 1>&2
       git branch --set-upstream-to="origin/$current" || true

@@ -13,7 +13,7 @@ EOF
 }
 
 main() {
-  local -a common_args extra_ctags_args=(--append "--languages=-sql")
+  local -a common_args=("--tag-relative=yes" -f .git/tags) extra_ctags_args=("--languages=-sql" -L .git/tags.files)
   local ruby
 
   if [[ -f Gemfile ]]; then
@@ -32,24 +32,21 @@ main() {
         ruby=""
         ;;
       *)
-        extra_ctags_args+=($1)
+        extra_ctags_args+=("$1")
         ;;
     esac
 
     shift
   done
 
-  common_args=("--tag-relative=yes" -L .git/tags.files -f .git/tags)
 
   if [[ "$(command -v ctags)" != "/usr/bin/ctags" ]]; then
-    rm -f .git/tags.files
-    rm -f .git/tags
-
     rg --files -g '!*.sql' -g '!*.xml' > .git/tags.files
 
     if [[ -n "$ruby" ]]; then
-      ripper-tags "${common_args[@]}" || (echo "ripper-tags not installed: gem install ripper-tags" && exit 1)
-      ctags "${common_args[@]}" --languages=-ruby "${extra_ctags_args[@]}"
+      rg --files -g '*.rb' > .git/ruby-tags.files
+      ripper-tags "${common_args[@]}" -L .git/ruby-tags.files || (echo "ripper-tags errored, is it installed? gem install ripper-tags" && exit 1)
+      ctags "${common_args[@]}" --append --languages=-ruby "${extra_ctags_args[@]}"
     else
       ctags "${common_args[@]}" "${extra_ctags_args[@]}"
     fi
