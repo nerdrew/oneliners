@@ -13,8 +13,9 @@ EOF
 }
 
 main() {
-  local -a common_args=("--tag-relative=yes" -f .git/tags) extra_ctags_args=("--languages=-sql" -L .git/tags.files)
-  local ruby rust
+  local ruby rust git_dir
+  git_dir=$(git rev-parse --git-dir)
+  local -a common_args=("--tag-relative=yes" -f "$git_dir/tags") extra_ctags_args=("--languages=-sql" -L "$git_dir/tags.files")
 
   if [[ -f Gemfile ]]; then
     ruby=y
@@ -51,11 +52,11 @@ main() {
 
 
   if [[ "$(command -v ctags)" != "/usr/bin/ctags" ]]; then
-    rg --files -g '!*.sql' -g '!*.xml' > .git/tags.files
+    rg --files -g '!*.sql' -g '!*.xml' > "$git_dir/tags.files"
 
     if [[ -n "$ruby" ]]; then
-      rg --files -g '*.rb' > .git/ruby-tags.files
-      ripper-tags "${common_args[@]}" -L .git/ruby-tags.files || (echo "ripper-tags errored, is it installed? gem install ripper-tags"; exit 1)
+      rg --files -g '*.rb' > "$git_dir/ruby-tags.files"
+      ripper-tags "${common_args[@]}" -L "$git_dir/ruby-tags.files" || (echo "ripper-tags errored, is it installed? gem install ripper-tags"; exit 1)
       extra_ctags_args+=("--append" "--languages=-ruby")
     fi
 

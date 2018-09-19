@@ -3,11 +3,14 @@
 set -eu -o pipefail
 
 main() {
+  local git_dir
+  git_dir=$(git rev-parse --git-dir)
+
   if command -v cscope > /dev/null; then
-    rm -f .git/cscope.files
-    rm -f .git/cscope.out
-    rg --files -g '!*.sql' -g '!*.xml' | sed -E 's/"/\\"/;s/^/"/;s/$/"/' > .git/cscope.files
-    cscope -b -i .git/cscope.files -f .git/cscope.out
+    rm -f "$git_dir/cscope.files"
+    rm -f "$git_dir/cscope.out"
+    rg --files -g '!*.sql' -g '!*.xml' | sed -E 's/"/\\"/;s/^/"/;s/$/"/' > "$git_dir/cscope.files"
+    cscope -b -i "$git_dir/cscope.files" -f "$git_dir/cscope.out"
   else
     echo "brew install cscope" >&2
     exit 1
