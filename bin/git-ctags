@@ -4,7 +4,7 @@ set -eu -o pipefail
 
 usage() {
   cat <<EOF
-Usage: git ctags [--[no-]ruby] [ctags options]
+Usage: git ctags [--[no-]ruby] [--[no-]rust] [ctags options]
 
 Build ctags. By default it checks for a Gemfile to determine whether it is a ruby project.
 EOF
@@ -14,11 +14,15 @@ EOF
 
 main() {
   local -a common_args=("--tag-relative=yes" -f .git/tags) extra_ctags_args=("--languages=-sql" -L .git/tags.files)
-  local ruby
+  local ruby rust
 
   if [[ -f Gemfile ]]; then
     ruby=y
   fi
+  if [[ -f Cargo.toml ]]; then
+    rust=y
+  fi
+
 
   while (( $# )); do
     case "$1" in
@@ -30,6 +34,12 @@ main() {
         ;;
       --no-ruby)
         ruby=""
+        ;;
+      --rust)
+        rust=y
+        ;;
+      --no-rust)
+        rust=""
         ;;
       *)
         extra_ctags_args+=("$1")
@@ -45,11 +55,16 @@ main() {
 
     if [[ -n "$ruby" ]]; then
       rg --files -g '*.rb' > .git/ruby-tags.files
-      ripper-tags "${common_args[@]}" -L .git/ruby-tags.files || (echo "ripper-tags errored, is it installed? gem install ripper-tags" && exit 1)
-      ctags "${common_args[@]}" --append --languages=-ruby "${extra_ctags_args[@]}"
-    else
-      ctags "${common_args[@]}" "${extra_ctags_args[@]}"
+      ripper-tags "${common_args[@]}" -L .git/ruby-tags.files || (echo "ripper-tags errored, is it installed? gem install ripper-tags"; exit 1)
+      extra_ctags_args+=("--append" "--languages=-ruby")
     fi
+
+    if [[ -n "$rust" ]]; then
+      cargo ctags -- "${common_args[@]}" "${extra_ctags_args[@]}"
+      extra_ctags_args+=("--append" "--languages=-rust")
+    fi
+
+    ctags "${common_args[@]}" "${extra_ctags_args[@]}"
   else
     echo "brew install ctags or brew install --HEAD universal-ctags/universal-ctags/universal-ctags" >&2
     exit 1

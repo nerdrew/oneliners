@@ -17,7 +17,13 @@ main() {
     exit
   fi
 
-  crate=$(cargo metadata --format-version=1 | jq -r "limit(1; .packages[] | select(.name == \"$1\") | .manifest_path)")
+  if [[ -z "$EDITOR" ]]; then
+    # shellcheck disable=SC2016
+    echo '$EDITOR is not set'
+    exit 1
+  fi
+
+  crate=$(cargo metadata --format-version=1 | jq -r "limit(1; .packages[] | select(.name == \"$1\") | .manifest_path)" || (echo "jq errored, is jq installed?"; exit 1))
 
   if [[ -z "$crate" ]]; then
     echo "Usage: cargo open <crate>"
@@ -26,13 +32,8 @@ main() {
     exit 1
   fi
 
-  if [[ -z "$EDITOR" ]]; then
-    # shellcheck disable=SC2016
-    echo '$EDITOR is not set'
-    exit 1
-  fi
-
-  exec "$EDITOR" "$(dirname "$crate")"
+  cd "$(dirname "$crate")"
+  exec "$EDITOR"
 }
 
 main "$@"
