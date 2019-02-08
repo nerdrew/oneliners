@@ -24,10 +24,10 @@ main() {
     elif [[ $1 == "-h" || $1 == "--help" ]]; then
       usage 0
     elif [[ ${1} == "--" ]]; then
-      paths=($@)
+      paths=("${@}")
       break
     elif [[ ${1:0:1} == "-" ]]; then
-      logopts+=($1)
+      logopts+=("$1")
     elif [[ -z "${branch1:-}" ]]; then
       branch1=$1
     elif [[ -z "${branch2:-}" ]]; then
