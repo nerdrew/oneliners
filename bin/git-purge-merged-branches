@@ -41,7 +41,7 @@ main() {
   keep_branches='^\*'"$(printf "|%s" "${purge_keep_branches[@]}")"
 
   # don't remove the "keep_branches", includes master and current='^\*'
-  mapfile merged_local < <(git branch --merged "$target" | grep -viE "$keep_branches" || true)
+  merged_local=($(git branch --merged "$target" | grep -viE "$keep_branches" || true))
 
   # Remove local fully merged branches
   if (( ${#merged_local[@]} )); then
@@ -52,7 +52,7 @@ main() {
 
   if [[ -n "${purge_remote:-}" ]]; then
     # Show remote fully merged branches
-    mapfile merged_remote < <(git branch -r --merged "$target" | sed 's/ *'"$remote"'\///' | grep -viE "$keep_branches")
+    merged_remote=($(git branch -r --merged "$target" | sed 's/ *'"$remote"'\///' | grep -viE "$keep_branches"))
 
     if (( ${#merged_remote[@]} )); then
       echo "The following remote branches are fully merged and will be removed:"
