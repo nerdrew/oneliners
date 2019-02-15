@@ -37,10 +37,12 @@ main() {
   target=${target:-origin/master}
   remote=${target%%/*}
 
+  # shellcheck disable=SC2206
   purge_keep_branches=(master$ ${GIT_PURGE_KEEP_BRANCHES:-})
   keep_branches='^\*'"$(printf "|%s" "${purge_keep_branches[@]}")"
 
   # don't remove the "keep_branches", includes master and current='^\*'
+  # shellcheck disable=SC2207
   merged_local=($(git branch --merged "$target" | grep -viE "$keep_branches" || true))
 
   # Remove local fully merged branches
@@ -52,6 +54,7 @@ main() {
 
   if [[ -n "${purge_remote:-}" ]]; then
     # Show remote fully merged branches
+    # shellcheck disable=SC2207
     merged_remote=($(git branch -r --merged "$target" | sed 's/ *'"$remote"'\///' | grep -viE "$keep_branches"))
 
     if (( ${#merged_remote[@]} )); then

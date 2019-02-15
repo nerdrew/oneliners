@@ -34,6 +34,7 @@ main() {
       echo "Setting upstream branch: git branch --set-upstream-to=origin/$current" 1>&2
       git branch --set-upstream-to="origin/$current" || true
     fi
+    force=""
   else
     usage 1
   fi
