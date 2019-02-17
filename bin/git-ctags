@@ -19,9 +19,13 @@ main() {
 
   if [[ -f Gemfile ]]; then
     ruby=y
+  else
+    ruby=""
   fi
   if [[ -f Cargo.toml ]]; then
     rust=y
+  else
+    rust=""
   fi
 
 
