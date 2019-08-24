@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -eu -o pipefail
+set -eux -o pipefail
 
 usage() {
   cat <<EOF
@@ -23,7 +23,7 @@ main() {
     ruby=""
   fi
   if [[ -f Cargo.toml ]]; then
-    rust=y
+    rust=""
   else
     rust=""
   fi
@@ -61,12 +61,12 @@ main() {
     if [[ -n "$ruby" ]]; then
       rg --files -g '*.rb' > "$git_dir/ruby-tags.files"
       ripper-tags "${common_args[@]}" -L "$git_dir/ruby-tags.files" || (echo "ripper-tags errored, is it installed? gem install ripper-tags"; exit 1)
-      extra_ctags_args+=("--append" "--languages=-ruby")
+      extra_ctags_args=("--append" "--languages=-ruby" "${extra_ctags_args[@]}")
     fi
 
     if [[ -n "$rust" ]]; then
       cargo ctags -- "${common_args[@]}" "${extra_ctags_args[@]}"
-      extra_ctags_args+=("--append" "--languages=-rust")
+      extra_ctags_args=("--append" "--languages=-rust" "${extra_ctags_args[@]}")
     fi
 
     ctags "${common_args[@]}" "${extra_ctags_args[@]}"

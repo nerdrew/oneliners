@@ -40,14 +40,14 @@ main() {
   fi
 
   if [[ "$target" == */* ]]; then
-    git fetch --prune "${target%%/*}"
+    git fetch --prune --prune-tags "${target%%/*}"
   else
-    git fetch --prune
+    git fetch --prune --prune-tags
   fi
 
   # #| removes the leading "|"
   if [[ -z "$force" ]] && grep -qiE "${keep_branches#|}" <<< "$current" ; then
-    echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES='$GIT_PURGE_KEEP_BRANCHES'" 1>&2
+    echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES='${purge_keep_branches[*]}'" 1>&2
     git pull
   else
     if ! git diff --quiet --ignore-submodules=dirty "$(git merge-base HEAD "${target}")..${target}"; then
