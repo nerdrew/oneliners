@@ -13,9 +13,9 @@ main() {
     exit
   fi
 
-  pg_ctl=/usr/local/bin/pg_ctl
-  db_dir=/usr/local/var/postgres
-  log_file=/usr/local/var/log/postgres.log
+  pg_ctl=$(brew --prefix)/bin/pg_ctl
+  db_dir=$(brew --prefix)/var/postgres
+  log_file=$(brew --prefix)/var/log/postgres.log
 
   if [[ $1 == stop || $1 == restart ]]; then
     mode='--mode fast'
