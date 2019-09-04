@@ -23,8 +23,8 @@ main() {
     mode=''
   fi
 
-  echo $pg_ctl --pgdata $db_dir --log $log_file $mode "$1"
-  $pg_ctl --pgdata $db_dir --log $log_file $mode "$1"
+  set -x
+  $pg_ctl --pgdata "$db_dir" --log "$log_file" $mode "$1"
 }
 
 main "$@"
