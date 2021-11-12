@@ -40,9 +40,9 @@ main() {
   fi
 
   if [[ "$target" == */* ]]; then
-    git fetch --prune --prune-tags "${target%%/*}"
+    git fetch --prune "${target%%/*}"
   else
-    git fetch --prune --prune-tags
+    git fetch --prune
   fi
 
   # #| removes the leading "|"
