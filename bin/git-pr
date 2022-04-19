@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+
+set -eu -o pipefail
+
+usage() {
+  cat <<EOF
+Usage: git pr [--force] [--fresh] [-f=--force --fresh] [BRANCH=origin/HEAD] [-- ci-command --with args]
+
+Push BRANCH if it is out of date, optionally run CI, and open a browser window to create a pull request.
+EOF
+
+  exit "$1"
+}
+
+main() {
+  local branch remote_branch repo_url re project repo force
+  local -a ci_command
+  ci_command=()
+  force=""
+  fresh=0
+
+  branch=$(git rev-parse --abbrev-ref --verify HEAD)
+
+  while (( $# )); do
+    if [[ -z "$1" ]]; then
+      break
+    elif [[ $1 == "-h" || $1 == "--help" ]]; then
+      usage 0
+    elif [[ ${1} == "--" ]]; then
+      shift
+      ci_command=("${@}")
+      break
+    elif [[ -z "${branch:-}" ]]; then
+      branch=$1
+    elif [[ $1 == "--force" ]]; then
+      force="--force"
+    elif [[ $1 == "--fresh" ]]; then
+      fresh=1
+    elif [[ $1 == "-f" ]]; then
+      force="--force"
+      fresh=1
+    else
+      usage 1
+    fi
+
+    shift
+  done
+
+  if [[ "$fresh" == "1" ]]; then
+    git fresh
+  fi
+
+  if ! git config "branch.$branch.remote" > /dev/null; then
+    echo "Setting upstream branch: git branch --set-upstream-to=origin/$branch" 1>&2
+    git branch --set-upstream-to="origin/$branch" || true
+    remote_branch="origin/$branch"
+  else
+    remote_branch=$(git rev-parse --abbrev-ref --verify "${branch}@{u}")
+  fi
+
+  if [[ $(git rev-parse --verify "$branch" 2>/dev/null) != $(git rev-parse --verify "$remote_branch" 2>/dev/null) ]]; then
+    git push "$force"
+  fi
+
+  repo_url=$(git config remote.origin.url)
+  re="^(https:\\/\\/|git:\\/\\/|ssh:\\/\\/git@|git@)?([^\\/:]+)[\\/:]([^\\/:]+)\\/(.+).git$"
+  if [[ $repo_url =~ $re ]]; then
+    # protocol=${BASH_REMATCH[1]}
+    # host=${BASH_REMATCH[2]}
+    project=${BASH_REMATCH[3]}
+    repo=${BASH_REMATCH[4]}
+  else
+    echo "ERROR! git remote does not match the regular expression."
+  fi
+
+  if [[ $repo_url == *github* ]]; then
+    # Launch GitHub pull request url.
+    url="https://github.com/$project/$repo/pull/new/$branch"
+  else
+    echo "ERROR: Do not recognize the configured git remote: $repo_url"
+    exit 1
+  fi
+
+  open "$url"
+
+  if [[ "${#ci_command[@]}" -gt 0 ]]; then
+    echo "Running ci command=${CI_COMMAND}"
+    "${ci_command[@]}"
+  elif [[ -n "${CI_COMMAND:-}" ]]; then
+    echo "Running \$CI_COMMAND=${CI_COMMAND}"
+    $CI_COMMAND
+  fi
+}
+
+main "$@"
