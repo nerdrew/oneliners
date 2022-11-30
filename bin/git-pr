@@ -46,6 +46,11 @@ main() {
     shift
   done
 
+  if [[ "$branch" == "master" ]]; then
+    echo "ERROR! You're on master!"
+    exit 1
+  fi
+
   if [[ "$fresh" == "1" ]]; then
     git fresh
   fi
