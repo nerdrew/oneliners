@@ -26,8 +26,18 @@ main() {
     usage 1
   fi
 
-  sha=$(git rev-parse --verify $branch)
-  echo -n "$sha" | pbcopy
+  if command -v pbcopy > /dev/null; then
+    copy=pbcopy
+  elif command -v wl-copy > /dev/null; then
+    copy=wl-copy
+  else
+    echo "couldn't find copy utility... " 1>&2
+  fi
+
+  sha=$(git rev-parse --verify "$branch")
+  if [[ -n "$copy" ]]; then
+    echo -n "$sha" | $copy
+  fi
   echo "$sha"
 }
 
