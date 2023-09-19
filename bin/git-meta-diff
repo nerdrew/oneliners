@@ -13,10 +13,10 @@ EOF
 }
 
 main() {
-  local branch1 branch2 mergebase commits1 commits2 commits
-  local -a logopts paths
+  local branch1 branch2 mergebase1
+  local -a diffopts paths
 
-  logopts=(-u)
+  diffopts=()
 
   while (( $# )); do
     if [[ -z "$1" ]]; then
@@ -27,7 +27,7 @@ main() {
       paths=("${@}")
       break
     elif [[ ${1:0:1} == "-" ]]; then
-      logopts+=("$1")
+      diffopts+=("$1")
     elif [[ -z "${branch1:-}" ]]; then
       branch1=$1
     elif [[ -z "${branch2:-}" ]]; then
@@ -43,17 +43,14 @@ main() {
   branch1=${branch1:-origin/$branch2}
 
 
-  mergebase=$(git merge-base "$branch1" "$branch2")
-  commits1=$(git log --oneline "$mergebase..$branch1" | wc -l)
-  commits2=$(git log --oneline "$mergebase..$branch2" | wc -l)
-
-  commits=$(( commits1 > commits2 ? commits2 : commits1 ))
+  mergebase1=$(git merge-base origin/master "$branch1")
+  mergebase2=$(git merge-base origin/master "$branch2")
 
   diff -U0 --label "$branch1" --label "$branch2" \
-    <(git log "${logopts[@]}" -$commits "$mergebase...$branch1" "${paths[@]:-.}" \
-    | grep -vE '^(@@ -\d+,\d+ \+\d+,\d+|index \w{7}\.\.\w{7}|commit \w{40})') \
-    <(git log "${logopts[@]}" -$commits "$mergebase...$branch2" "${paths[@]:-.}" \
-    | grep -vE '^(@@ -\d+,\d+ \+\d+,\d+|index \w{7}\.\.\w{7}|commit \w{40})')
+    <(git diff "${diffopts[@]}" "$mergebase1...$branch1" "${paths[@]:-.}" \
+    | grep -vE '^(@@[-0-9,+ ]+@@|index \w{7,}\.\.\w{7,}|commit \w{40})') \
+    <(git diff "${diffopts[@]}" "$mergebase2...$branch2" "${paths[@]:-.}" \
+    | grep -vE '^(@@[-0-9,+ ]+@@|index \w{7,}\.\.\w{7,}|commit \w{40})')
 }
 
 main "$@"

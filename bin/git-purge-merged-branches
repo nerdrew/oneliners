@@ -38,7 +38,7 @@ main() {
   remote=${target%%/*}
 
   # shellcheck disable=SC2206
-  purge_keep_branches=(master$ ${GIT_PURGE_KEEP_BRANCHES:-})
+  purge_keep_branches=(main$ master$ ${GIT_PURGE_KEEP_BRANCHES:-})
   keep_branches='^\*'"$(printf "|%s" "${purge_keep_branches[@]}")"
 
   # don't remove the "keep_branches", includes master and current='^\*'

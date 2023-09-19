@@ -19,7 +19,7 @@ main() {
   local -a purge_keep_branches
 
   current=$(git rev-parse --abbrev-ref --verify HEAD)
-  read -r -a purge_keep_branches <<< "master ${GIT_PURGE_KEEP_BRANCHES[*]:-}"
+  read -r -a purge_keep_branches <<< "main master ${GIT_PURGE_KEEP_BRANCHES[*]:-}"
   keep_branches="$(printf "|%s" "${purge_keep_branches[@]}")"
 
   if [[ $# -eq 1 ]]; then
