@@ -4,7 +4,7 @@ set -eu -o pipefail
 
 usage() {
   cat <<EOF
-Usage: git fresh [BRANCH=origin/HEAD]
+Usage: git fresh [--force] [--rebase-abort] [BRANCH=origin/HEAD]
 
 Fetch the target BRANCH, stash changes if necessary, and rebase on it.  If the
 current branch matches \$GIT_PURGE_KEEP_BRANCHES, the don't rebase, only pull.
@@ -15,48 +15,83 @@ EOF
 }
 
 main() {
-  local target current keep_branches stashed force
+  local target current keep_branches stashed force unpushed_changes rebase_abort
   local -a purge_keep_branches
+
+  while (( $# )); do
+    if [[ -z "$1" ]]; then
+      break
+    elif [[ "$1" == "-h" || "$1" == "--help" ]]; then
+      usage 0
+    elif [[ "$1" == "-f" || "$1" == "--force" ]]; then
+      force=1
+    elif [[ "$1" == "--rebase-abort" ]]; then
+      rebase_abort=1
+    elif [[ "${1:0:1}" == "-" ]]; then
+      echo "Unknown flag: ${1}" 1>&2
+      usage 1
+    elif [[ -z "${target:-}" ]]; then
+      target=$1
+    else
+      echo "Unknown argument: ${1}" 1>&2
+      usage 1
+    fi
+
+    shift
+  done
 
   current=$(git rev-parse --abbrev-ref --verify HEAD)
   read -r -a purge_keep_branches <<< "main master ${GIT_PURGE_KEEP_BRANCHES[*]:-}"
   keep_branches="$(printf "|%s" "${purge_keep_branches[@]}")"
 
-  if [[ $# -eq 1 ]]; then
-    if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-      usage 0
-    fi
-    target=$1
-    force=1
-  elif [[ $# -eq 0 ]]; then
-    target=$(git rev-parse --verify --abbrev-ref --symbolic-full-name origin/HEAD 2>/dev/null || echo origin/master)
-    if ! git config "branch.$current.remote" > /dev/null; then
-      echo "Setting upstream branch: git branch --set-upstream-to=origin/$current" 1>&2
-      git branch --set-upstream-to="origin/$current" || true
-    fi
-    force=""
-  else
-    usage 1
+  if ! git config "branch.$current.remote" > /dev/null; then
+    echo "Setting upstream branch: git branch --set-upstream-to=origin/$current" 1>&2
+    git branch --set-upstream-to="origin/$current" || true
   fi
 
-  if [[ "$target" == */* ]]; then
-    git fetch --prune "${target%%/*}"
-  else
-    git fetch --prune
+  target=${target:-$(git rev-parse --verify --abbrev-ref --symbolic-full-name origin/HEAD 2>/dev/null || echo origin/master)}
+
+  if ! git diff --quiet --ignore-submodules=dirty "origin/${current}"; then
+    unpushed_changes=1
+  fi
+
+  if [[ "$target" == */* ]] && [[ "$target" != origin/* ]]; then
+    git fetch --recurse-submodules --prune "${target%%/*}"
+  fi
+
+  if ! git pull --prune --recurse-submodules --ff-only origin "${current}"; then
+    if [[ "${unpushed_changes:-}" == 1 ]]; then
+      echo "Pull failed and there are local changes, exiting" 1>&2
+      exit 1
+    else
+      echo "git pull --prune --recurse-submodules --ff-only failed but there are no unpushed changes, will git reset --hard ${target}" 1>&2
+      echo "The sha before resetting=${current}" 1>&2
+      git reset --hard "origin/${current}"
+    fi
   fi
 
   # #| removes the leading "|"
-  if [[ -z "$force" ]] && grep -qiE "${keep_branches#|}" <<< "$current" ; then
+  if [[ "${force:-}" != "1" ]] && grep -qiE "${keep_branches#|}" <<< "$current" ; then
     echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES='${purge_keep_branches[*]}'" 1>&2
-    git pull
   else
     if ! git diff --quiet --ignore-submodules=dirty "$(git merge-base HEAD "${target}")..${target}"; then
       if ! git diff --quiet --ignore-submodules=dirty; then
         stashed=1
         git stash
       fi
-      git rebase "${target}"
-      if [[ -n "${stashed:-}" ]]; then
+
+      if ! git rebase "${target}" && [[ "${rebase_abort}" == 1 ]]; then
+        echo "Rebase failed, git rebase --abort -ing" 1>&2
+        git rebase --abort
+      elif [[ "${stashed:-}" == "1" ]]; then
+        echo "Rebase failed, exiting, NOTE: CHANGES LEFT STASHED" 1>&2
+        exit 1
+      else
+        echo "Rebase failed, exiting" 1>&2
+        exit 1
+      fi
+
+      if [[ "${stashed:-}" == "1" ]]; then
         git stash pop
       fi
     fi
