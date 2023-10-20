@@ -27,6 +27,8 @@ main() {
       force=1
     elif [[ "$1" == "--rebase-abort" ]]; then
       rebase_abort=1
+    elif [[ "$1" == "--debug" ]]; then
+      set -x
     elif [[ "${1:0:1}" == "-" ]]; then
       echo "Unknown flag: ${1}" 1>&2
       usage 1
@@ -52,7 +54,10 @@ main() {
   fi
 
   if [[ -z "${remote:-}" ]]; then
-    remote=$(git rev-parse --verify --abbrev-ref --symbolic-full-name origin/HEAD 2>/dev/null || echo origin)
+    if ! git rev-parse --verify --abbrev-ref --symbolic-full-name origin/HEAD 2>/dev/null; then
+      git remote set-head origin -a
+    fi
+    remote=$(git rev-parse --verify --abbrev-ref --symbolic-full-name origin/HEAD)
   fi
 
   if [[ -z "${remote_branch:-}" ]]; then
@@ -60,7 +65,10 @@ main() {
       remote_branch=${remote#*/}
       remote=${remote%%/*}
     else
-      remote_branch=$(git rev-parse --abbrev-ref "${remote}")
+      if ! git rev-parse --verify --abbrev-ref --symbolic-full-name "${remote}" 2>/dev/null; then
+        git remote set-head "${remote}" -a
+      fi
+      remote_branch=$(git rev-parse --verify --abbrev-ref --symbolic-full-name "${remote}")
       remote_branch=${remote_branch#*/}
     fi
   fi
