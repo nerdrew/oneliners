@@ -54,7 +54,7 @@ main() {
   fi
 
   if [[ -z "${remote:-}" ]]; then
-    if ! git rev-parse --verify --abbrev-ref --symbolic-full-name origin/HEAD 2>/dev/null; then
+    if ! git rev-parse --verify --abbrev-ref --symbolic-full-name origin/HEAD &>/dev/null; then
       git remote set-head origin -a
     fi
     remote=$(git rev-parse --verify --abbrev-ref --symbolic-full-name origin/HEAD)
@@ -65,7 +65,7 @@ main() {
       remote_branch=${remote#*/}
       remote=${remote%%/*}
     else
-      if ! git rev-parse --verify --abbrev-ref --symbolic-full-name "${remote}" 2>/dev/null; then
+      if ! git rev-parse --verify --abbrev-ref --symbolic-full-name "${remote}" &>/dev/null; then
         git remote set-head "${remote}" -a
       fi
       remote_branch=$(git rev-parse --verify --abbrev-ref --symbolic-full-name "${remote}")
