@@ -13,7 +13,7 @@ EOF
 }
 
 main() {
-  local branch1 branch2 mergebase1
+  local branch1 branch2 mergebase1 quiet
   local -a diffopts paths
 
   diffopts=()
@@ -21,8 +21,12 @@ main() {
   while (( $# )); do
     if [[ -z "$1" ]]; then
       break
+    elif [[ "$1" == "--debug" ]]; then
+      set -x
     elif [[ $1 == "-h" || $1 == "--help" ]]; then
       usage 0
+    elif [[ $1 == "-q" || $1 == "--quiet" ]]; then
+      quiet=-q
     elif [[ ${1} == "--" ]]; then
       paths=("${@}")
       break
@@ -42,11 +46,14 @@ main() {
   branch2=${branch2:-$(git rev-parse --abbrev-ref HEAD)}
   branch1=${branch1:-origin/$branch2}
 
+  if [[ ! "${branch1}" =~ "/" ]]; then
+    branch1=${branch1}/$branch2
+  fi
 
   mergebase1=$(git merge-base origin/master "$branch1")
   mergebase2=$(git merge-base origin/master "$branch2")
 
-  diff -U0 --label "$branch1" --label "$branch2" \
+  diff ${quiet:-} -U0 --label "$branch1" --label "$branch2" \
     <(git diff "${diffopts[@]}" "$mergebase1...$branch1" "${paths[@]:-.}" \
     | grep -vE '^(@@[-0-9,+ ]+@@|index \w{7,}\.\.\w{7,}|commit \w{40})') \
     <(git diff "${diffopts[@]}" "$mergebase2...$branch2" "${paths[@]:-.}" \

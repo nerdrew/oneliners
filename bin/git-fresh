@@ -4,7 +4,7 @@ set -eu -o pipefail
 
 usage() {
   cat <<EOF
-Usage: git fresh [--force] [--rebase-abort] [BRANCH=origin/HEAD]
+Usage: git fresh [--force] [--rebase-abort] [--pull] [BRANCH=origin/HEAD]
 
 Fetch the target BRANCH, stash changes if necessary, and rebase on it.  If the
 current branch matches \$GIT_PURGE_KEEP_BRANCHES, the don't rebase, only pull.
@@ -15,20 +15,33 @@ EOF
 }
 
 main() {
-  local remote current keep_branches stashed force unpushed_changes rebase_abort remote_branch
+  local \
+    current \
+    force \
+    keep_branch \
+    keep_branches \
+    local_sha \
+    mergebase \
+    rebase_abort \
+    remote \
+    remote_branch \
+    remote_sha_after \
+    remote_sha_before \
+    stashed \
+
   local -a purge_keep_branches
 
   while (( $# )); do
     if [[ -z "$1" ]]; then
       break
+    elif [[ "$1" == "--debug" ]]; then
+      set -x
     elif [[ "$1" == "-h" || "$1" == "--help" ]]; then
       usage 0
     elif [[ "$1" == "-f" || "$1" == "--force" ]]; then
       force=1
     elif [[ "$1" == "--rebase-abort" ]]; then
       rebase_abort=1
-    elif [[ "$1" == "--debug" ]]; then
-      set -x
     elif [[ "${1:0:1}" == "-" ]]; then
       echo "Unknown flag: ${1}" 1>&2
       usage 1
@@ -45,8 +58,12 @@ main() {
   done
 
   current=$(git rev-parse --abbrev-ref --verify HEAD)
+  local_sha=$(git rev-parse --verify HEAD)
   read -r -a purge_keep_branches <<< "main master ${GIT_PURGE_KEEP_BRANCHES[*]:-}"
   keep_branches="$(printf "|%s" "${purge_keep_branches[@]}")"
+  if grep -qiE "${keep_branches#|}" <<< "$current"; then
+    keep_branch=1
+  fi
 
   if ! git config "branch.$current.remote" > /dev/null; then
     echo "Setting upstream branch: git branch --set-upstream-to=origin/$current" 1>&2
@@ -54,10 +71,10 @@ main() {
   fi
 
   if [[ -z "${remote:-}" ]]; then
-    if ! git rev-parse --verify --abbrev-ref --symbolic-full-name origin/HEAD &>/dev/null; then
+    if ! remote=$(git rev-parse --quiet --verify --abbrev-ref --symbolic-full-name origin/HEAD); then
       git remote set-head origin -a
+      remote=$(git rev-parse --quiet --verify --abbrev-ref --symbolic-full-name origin/HEAD)
     fi
-    remote=$(git rev-parse --verify --abbrev-ref --symbolic-full-name origin/HEAD)
   fi
 
   if [[ -z "${remote_branch:-}" ]]; then
@@ -65,42 +82,59 @@ main() {
       remote_branch=${remote#*/}
       remote=${remote%%/*}
     else
-      if ! git rev-parse --verify --abbrev-ref --symbolic-full-name "${remote}" &>/dev/null; then
+      if ! remote_branch=$(git rev-parse --quiet --verify --abbrev-ref --symbolic-full-name "${remote}"); then
         git remote set-head "${remote}" -a
+        remote_branch=$(git rev-parse --quiet --verify --abbrev-ref --symbolic-full-name "${remote}")
       fi
-      remote_branch=$(git rev-parse --verify --abbrev-ref --symbolic-full-name "${remote}")
       remote_branch=${remote_branch#*/}
     fi
   fi
 
-  if ! git diff --quiet --ignore-submodules=dirty "origin/${current}"; then
-    unpushed_changes=1
-  fi
+  remote_sha_before=$(git rev-parse --verify --quiet "origin/${current}") || true
+
+  git fetch --recurse-submodules --prune origin
 
   if [[ "$remote" != origin ]]; then
     git fetch --recurse-submodules --prune "${remote}"
   fi
 
-  if ! git pull --prune --recurse-submodules --ff-only origin "${current}"; then
-    if [[ "${unpushed_changes:-}" == 1 ]]; then
-      echo "Pull failed and there are local changes, exiting" 1>&2
-      exit 1
-    else
-      echo "git pull --prune --recurse-submodules --ff-only failed but there are no unpushed changes, will git reset --hard ${remote}/${remote_branch}" 1>&2
-      echo "The sha before resetting=${current}" 1>&2
-      git reset --hard "origin/${current}"
+  if [[ -n "${remote_sha_before}" ]]; then
+    remote_sha_after=$(git rev-parse --verify --quiet "origin/${current}")
+
+    if [[ "${local_sha}" != "${remote_sha_after}" ]]; then
+      if ! git diff --quiet --ignore-submodules=dirty; then
+        echo "Stashing changes..." 1>&2
+        stashed=1
+        git stash
+      fi
+      if ! git merge --ff-only origin/"${current}" && [[ "${keep_branch:-}" != 1 ]]; then
+        mergebase=$(git merge-base origin/master "${current}")
+
+        if git branch --contains "${mergebase}" "origin/${current}" >/dev/null \
+          && ([[ "${local_sha}" == "${remote_sha_before}" ]] || git meta-diff --quiet "${remote}/${current}"); then
+          echo "git merge --ff-only failed but there are no unpushed changes, will git reset --hard ${remote}/${remote_branch}" 1>&2
+          echo "The sha before resetting=${current}" 1>&2
+          git reset --hard "origin/${current}"
+        else
+          echo "There appear to be unknown changes on the remote of this branch, exiting" 1>&2
+          if [[ "${stashed:-}" == "1" ]]; then
+            echo "Restoring stashed changes..." 1>&2
+            git stash pop
+          fi
+          exit 1
+        fi
+      fi
     fi
   fi
 
-  # #| removes the leading "|"
-  if [[ "${force:-}" == "1" ]] || grep -qviE "${keep_branches#|}" <<< "$current" ; then
-    if ! git diff --quiet --ignore-submodules=dirty "$(git merge-base HEAD "${remote}/${remote_branch}")..${remote}/${remote_branch}"; then
+  if ! git diff --quiet --ignore-submodules=dirty "$(git merge-base HEAD "${remote}/${remote_branch}")..${remote}/${remote_branch}"; then
+    if [[ "${force:-}" == "1" || "${keep_branch:-}" != 1 ]]; then
       if ! git diff --quiet --ignore-submodules=dirty; then
         stashed=1
         git stash
       fi
 
-      if ! git rebase "${remote}" && [[ "${rebase_abort}" == 1 ]]; then
+      if ! git rebase "${remote}/${remote_branch}" && [[ "${rebase_abort:-}" == 1 ]]; then
         echo "Rebase failed, git rebase --abort -ing" 1>&2
         git rebase --abort
       elif [[ "${stashed:-}" == "1" ]]; then
@@ -110,17 +144,18 @@ main() {
         echo "Rebase failed, exiting" 1>&2
         exit 1
       fi
-
-      if [[ "${stashed:-}" == "1" ]]; then
-        git stash pop
-      fi
+    else
+      echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES='${purge_keep_branches[*]}'" 1>&2
     fi
-  else
-    echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES='${purge_keep_branches[*]}'" 1>&2
+  fi
+
+  if [[ "${stashed:-}" == "1" ]]; then
+    echo "Restoring stashed changes..." 1>&2
+    git stash pop
   fi
 
   if [[ "$current" == "$remote_branch" ]]; then
-    git-purge-merged-branches || echo "Failed to delete some merged branches, continuing."
+    git-purge-merged-branches || echo "Failed to delete some merged branches, continuing." 1>&2
   fi
 }
 
