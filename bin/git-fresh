@@ -113,7 +113,7 @@ main() {
       if ! git merge --ff-only origin/"${current}" && [[ "${keep_branch:-}" != 1 ]]; then
         mergebase=$(git merge-base origin/master "${current}")
 
-        if ~/dev/oneliners/bin/git-meta-diff ${debug:-} --quiet "${remote}/${current}"; then
+        if git-meta-diff ${debug:-} --quiet "${remote}/${current}"; then
           meta_diff=0
         else
           meta_diff=1
