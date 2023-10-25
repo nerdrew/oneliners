@@ -14,9 +14,9 @@ EOF
 
 main() {
   local branch1 branch2 mergebase1 quiet
-  local -a diffopts paths
+  local -a gitdiffopts paths diffopts
 
-  diffopts=()
+  gitdiffopts=()
 
   while (( $# )); do
     if [[ -z "$1" ]]; then
@@ -26,12 +26,12 @@ main() {
     elif [[ $1 == "-h" || $1 == "--help" ]]; then
       usage 0
     elif [[ $1 == "-q" || $1 == "--quiet" ]]; then
-      quiet=-q
+      quiet=1
     elif [[ ${1} == "--" ]]; then
       paths=("${@}")
       break
     elif [[ ${1:0:1} == "-" ]]; then
-      diffopts+=("$1")
+      gitdiffopts+=("$1")
     elif [[ -z "${branch1:-}" ]]; then
       branch1=$1
     elif [[ -z "${branch2:-}" ]]; then
@@ -50,13 +50,21 @@ main() {
     branch1=${branch1}/$branch2
   fi
 
+  diffopts=(--label "$branch1" --label "$branch2")
+
+  if [[ "${quiet:-}" == 1 ]]; then
+    diffopts+=(--brief)
+  else
+    diffopts+=(-U0)
+  fi
+
   mergebase1=$(git merge-base origin/master "$branch1")
   mergebase2=$(git merge-base origin/master "$branch2")
 
-  diff ${quiet:-} -U0 --label "$branch1" --label "$branch2" \
-    <(git diff "${diffopts[@]}" "$mergebase1...$branch1" "${paths[@]:-.}" \
+  diff "${diffopts[@]}" \
+    <(git diff "${gitdiffopts[@]}" "$mergebase1...$branch1" "${paths[@]:-.}" \
     | grep -vE '^(@@[-0-9,+ ]+@@|index \w{7,}\.\.\w{7,}|commit \w{40})') \
-    <(git diff "${diffopts[@]}" "$mergebase2...$branch2" "${paths[@]:-.}" \
+    <(git diff "${gitdiffopts[@]}" "$mergebase2...$branch2" "${paths[@]:-.}" \
     | grep -vE '^(@@[-0-9,+ ]+@@|index \w{7,}\.\.\w{7,}|commit \w{40})')
 }
 

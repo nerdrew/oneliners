@@ -17,11 +17,13 @@ EOF
 main() {
   local \
     current \
+    debug \
     force \
     keep_branch \
     keep_branches \
     local_sha \
     mergebase \
+    meta_diff \
     rebase_abort \
     remote \
     remote_branch \
@@ -35,6 +37,7 @@ main() {
     if [[ -z "$1" ]]; then
       break
     elif [[ "$1" == "--debug" ]]; then
+      debug=--debug
       set -x
     elif [[ "$1" == "-h" || "$1" == "--help" ]]; then
       usage 0
@@ -110,12 +113,18 @@ main() {
       if ! git merge --ff-only origin/"${current}" && [[ "${keep_branch:-}" != 1 ]]; then
         mergebase=$(git merge-base origin/master "${current}")
 
-        if git branch --contains "${mergebase}" "origin/${current}" >/dev/null \
-          && ([[ "${local_sha}" == "${remote_sha_before}" ]] || git meta-diff --quiet "${remote}/${current}"); then
-          echo "git merge --ff-only failed but there are no unpushed changes, will git reset --hard ${remote}/${remote_branch}" 1>&2
+        if ~/dev/oneliners/bin/git-meta-diff ${debug:-} --quiet "${remote}/${current}"; then
+          meta_diff=0
+        else
+          meta_diff=1
+        fi
+
+        if git merge-base --is-ancestor "${mergebase}" "origin/${current}" >/dev/null \
+          && [[ "${local_sha}" == "${remote_sha_before}" || "${meta_diff}" == 0 ]]; then
+          echo "git merge --ff-only failed but there are no unpushed changes, will git reset --hard origin/${current}" 1>&2
           echo "The sha before resetting=${current}" 1>&2
           git reset --hard "origin/${current}"
-        else
+        elif [[ "${meta_diff}" == 1 ]]; then
           echo "There appear to be unknown changes on the remote of this branch, exiting" 1>&2
           if [[ "${stashed:-}" == "1" ]]; then
             echo "Restoring stashed changes..." 1>&2
@@ -134,15 +143,17 @@ main() {
         git stash
       fi
 
-      if ! git rebase "${remote}/${remote_branch}" && [[ "${rebase_abort:-}" == 1 ]]; then
-        echo "Rebase failed, git rebase --abort -ing" 1>&2
-        git rebase --abort
-      elif [[ "${stashed:-}" == "1" ]]; then
-        echo "Rebase failed, exiting, NOTE: CHANGES LEFT STASHED" 1>&2
-        exit 1
-      else
-        echo "Rebase failed, exiting" 1>&2
-        exit 1
+      if ! git rebase "${remote}/${remote_branch}" ; then
+        if [[ "${rebase_abort:-}" == 1 ]]; then
+          echo "Rebase failed, git rebase --abort -ing" 1>&2
+          git rebase --abort
+        elif [[ "${stashed:-}" == "1" ]]; then
+          echo "Rebase failed, exiting, NOTE: CHANGES LEFT STASHED" 1>&2
+          exit 1
+        else
+          echo "Rebase failed, exiting" 1>&2
+          exit 1
+        fi
       fi
     else
       echo "Skipping rebase of $current since it is blacklisted in GIT_PURGE_KEEP_BRANCHES='${purge_keep_branches[*]}'" 1>&2
