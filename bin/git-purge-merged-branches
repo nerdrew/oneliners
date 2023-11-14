@@ -21,6 +21,8 @@ main() {
   while (( $# )); do
     if [[ $1 == "-h" ]] || [[ $1 == "--help" ]]; then
       usage 0
+    elif [[ "$1" == "--debug" ]]; then
+      set -x
     elif [[ "$1" == "--remote" ]]; then
       purge_remote=1
     elif [[ "$1" == "--tags" ]]; then
@@ -34,7 +36,10 @@ main() {
     shift
   done
 
-  target=${target:-origin/master}
+  if [[ -z ${target:-} ]] && ! target=$(git rev-parse --quiet --verify --abbrev-ref --symbolic-full-name origin/HEAD); then
+    git remote set-head "${remote}" -a
+    target=$(git rev-parse --quiet --verify --abbrev-ref --symbolic-full-name "${remote}")
+  fi
   remote=${target%%/*}
 
   # shellcheck disable=SC2206
