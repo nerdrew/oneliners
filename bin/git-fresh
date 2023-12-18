@@ -125,12 +125,16 @@ main() {
           echo "The sha before resetting=${current}" 1>&2
           git reset --hard "origin/${current}"
         elif [[ "${meta_diff}" == 1 ]]; then
-          echo "There appear to be unknown changes on the remote of this branch, exiting" 1>&2
-          if [[ "${stashed:-}" == "1" ]]; then
-            echo "Restoring stashed changes..." 1>&2
-            git stash pop
+          if [[ "${force:-}" == 1 ]]; then
+            echo "There appear to be unknown changes on the remote of this branch, but ignoring them because --force" 1>&2
+          else
+            echo "There appear to be unknown changes on the remote of this branch, exiting" 1>&2
+            if [[ "${stashed:-}" == "1" ]]; then
+              echo "Restoring stashed changes..." 1>&2
+              git stash pop
+            fi
+            exit 1
           fi
-          exit 1
         fi
       fi
     fi
