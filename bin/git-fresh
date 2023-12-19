@@ -23,6 +23,7 @@ main() {
     keep_branches \
     local_sha \
     mergebase \
+    meta_diff_cmd \
     meta_diff \
     rebase_abort \
     remote \
@@ -45,6 +46,12 @@ main() {
       force=1
     elif [[ "$1" == "--rebase-abort" ]]; then
       rebase_abort=1
+    elif [[ "$1" == --meta-diff ]]; then
+      meta_diff_cmd=$2
+      shift
+    elif [[ "$1" =~ --meta-diff=.* ]]; then
+      meta_diff_cmd=${1#*=}
+      meta_diff_cmd=${meta_diff_cmd/#\~/$HOME}
     elif [[ "${1:0:1}" == "-" ]]; then
       echo "Unknown flag: ${1}" 1>&2
       usage 1
@@ -111,9 +118,9 @@ main() {
         git stash
       fi
       if ! git merge --ff-only origin/"${current}" && [[ "${keep_branch:-}" != 1 ]]; then
-        mergebase=$(git merge-base origin/master "${current}")
+        mergebase=$(git merge-base "origin/$remote_branch" "${current}")
 
-        if git-meta-diff ${debug:-} --quiet "${remote}/${current}"; then
+        if ${meta_diff_cmd:-git-meta-diff} ${debug:-} --quiet "${remote}/${current}"; then
           meta_diff=0
         else
           meta_diff=1

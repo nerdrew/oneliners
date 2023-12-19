@@ -4,7 +4,7 @@ set -eu -o pipefail
 
 usage() {
   cat <<EOF 
-Usage: git meta-diff [git-log-options] [BRANCH1=origin/BRANCH2] [BRANCH2=HEAD] [-- paths...]
+Usage: git meta-diff [git-log-options] [BRANCH1=origin/BRANCH2] [BRANCH2=HEAD] [MERGEBASE=origin/HEAD] [-- paths...]
 
 Show the diff of the \`git log\` between BRANCH1 and BRANCH2.
 EOF
@@ -13,7 +13,7 @@ EOF
 }
 
 main() {
-  local branch1 branch2 mergebase1 quiet
+  local branch1 branch2 mergebase1 mergebase2 mergebase quiet
   local -a gitdiffopts paths diffopts
 
   gitdiffopts=()
@@ -36,6 +36,8 @@ main() {
       branch1=$1
     elif [[ -z "${branch2:-}" ]]; then
       branch2=$1
+    elif [[ -z "${mergebase:-}" ]]; then
+      mergebase=$1
     else
       usage 1
     fi
@@ -58,8 +60,15 @@ main() {
     diffopts+=(-U0)
   fi
 
-  mergebase1=$(git merge-base origin/master "$branch1")
-  mergebase2=$(git merge-base origin/master "$branch2")
+  if [[ -z "${mergebase:-}" ]]; then
+    if ! mergebase=$(git rev-parse --quiet --verify --abbrev-ref --symbolic-full-name origin/HEAD); then
+      git remote set-head origin -a
+      mergebase=$(git rev-parse --quiet --verify --abbrev-ref --symbolic-full-name origin/HEAD)
+    fi
+  fi
+
+  mergebase1=$(git merge-base "$mergebase" "$branch1")
+  mergebase2=$(git merge-base "$mergebase" "$branch2")
 
   diff "${diffopts[@]}" \
     <(git diff "${gitdiffopts[@]}" "$mergebase1...$branch1" "${paths[@]:-.}" \
