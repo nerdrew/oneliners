@@ -37,8 +37,8 @@ main() {
   done
 
   if [[ -z ${target:-} ]] && ! target=$(git rev-parse --quiet --verify --abbrev-ref --symbolic-full-name origin/HEAD); then
-    git remote set-head "${remote}" -a
-    target=$(git rev-parse --quiet --verify --abbrev-ref --symbolic-full-name "${remote}")
+    git remote set-head origin -a
+    target=$(git rev-parse --quiet --verify --abbrev-ref --symbolic-full-name origin/HEAD)
   fi
   remote=${target%%/*}
 
